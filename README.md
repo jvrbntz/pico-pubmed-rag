@@ -58,7 +58,7 @@ Acceptance criteria per phase are written before that phase's code, and enforced
 
 ## Data
 
-Clinical cases are drawn from [MTSamples](https://mtsamples.com), a publicly available collection of de-identified, transcribed medical transcription samples. Credit: MTSamples.com. Used here per their terms of use; this project does not redistribute the dataset. Field names follow a non-PHI-shaped convention (`case_id`, not `patient_id`) regardless, and no case is modified to inject or simulate real patient identifiers.
+Clinical cases come from [MTSamples](https://mtsamples.com) (educational use, with attribution), a de-identified collection of transcribed medical notes. This project pulls the dataset via kagglehub from a Kaggle mirror (tboyle10/medicaltranscriptions, labeled CC0) that scraped mtsamples.com. Field names follow a non-PHI-shaped convention (`case_id`, not `patient_id`) regardless, and no case is modified to inject or simulate real patient identifiers.
 
 ## Setup
 
@@ -67,7 +67,10 @@ uv sync
 cp .env.example .env   # fill in NCBI_API_KEY, NCBI_EMAIL, OLLAMA_LLM_MODEL
 ollama pull nomic-embed-text
 ollama pull <the model tag you set in OLLAMA_LLM_MODEL>
+uv run python scripts/download_data.py
 ```
+
+The last step downloads MTSamples via kagglehub and copies it into `data/` (gitignored). Requires Kaggle API credentials configured on your machine.
 
 Requires Python 3.11+; `uv` will provision it if your system interpreter is older.
 

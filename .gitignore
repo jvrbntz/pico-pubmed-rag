@@ -20,6 +20,9 @@ ipython_config.py
 .env
 *.env.local
 
+# Data
+data/
+
 # uv
 uv.lock.bak
 
