@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+profile_default/
+ipython_config.py
+
+# Secrets
+.env
+*.env.local
+
+# uv
+uv.lock.bak
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Local scratch / cache
+.cache/
+*.log
