@@ -64,9 +64,9 @@ Clinical cases are drawn from [MTSamples](https://mtsamples.com), a publicly ava
 
 ```bash
 uv sync
-cp .env.example .env   # fill in NCBI_API_KEY, NCBI_EMAIL, and Ollama model tags
+cp .env.example .env   # fill in NCBI_API_KEY, NCBI_EMAIL, OLLAMA_LLM_MODEL
 ollama pull nomic-embed-text
-ollama pull <medgemma-tag>   # confirm exact tag on the Ollama registry
+ollama pull <the model tag you set in OLLAMA_LLM_MODEL>
 ```
 
 Requires Python 3.11+; `uv` will provision it if your system interpreter is older.
