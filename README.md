@@ -77,6 +77,7 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 ## Known limitations
 
 - Input quality from MTSamples can be poor: dictated notes, informal phrasing, abbreviations, incomplete sentences. A bad extraction from a messy case is a different failure than bad reasoning over a clear one, and eval reporting keeps them distinguishable.
+- The `medical_specialty` field mixes actual clinical specialties (Surgery, Cardiovascular / Pulmonary) with document types (Discharge Summary, SOAP / Chart / Progress Notes, Letters). Anything that filters or samples by specialty needs to account for this, not treat every value as a real specialty.
 - PICO extraction can misframe a clear case (wrong population, intervention, or outcome). The failure is silent and propagates through search, ranking, and summary, producing a fluent, well-cited, wrong result.
 - Search translation can under- or over-constrain the query: irrelevant results from poor MeSH mapping, or zero results even after broadening, when the literature is genuinely thin.
 - External dependencies can fail: NCBI rate limits, downtime, or a fetched record missing a field. This needs retry and backoff, not better prompting.
