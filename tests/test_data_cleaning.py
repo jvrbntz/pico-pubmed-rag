@@ -64,3 +64,9 @@ def test_clean_dataset_preserves_column_values(raw_df):
 
     for col in ["description", "medical_specialty", "sample_name", "transcription"]:
         assert (matching_raw[col].values == result[col].values).all()
+
+
+def test_clean_dataset_raises_when_unnamed_column_missing(raw_df):
+    df_missing_unnamed = raw_df.drop(columns=["Unnamed: 0"])
+    with pytest.raises(KeyError):
+        clean_dataset(df_missing_unnamed)

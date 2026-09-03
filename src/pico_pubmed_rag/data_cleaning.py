@@ -5,7 +5,7 @@ def clean_dataset(df):
     df = (
         df.drop(columns=["keywords"])
         .dropna(subset=["transcription"])
-        .rename(columns={"Unnamed: 0": "case_id"})
+        .rename(columns={"Unnamed: 0": "case_id"}, errors="raise")
     )
 
     return df
