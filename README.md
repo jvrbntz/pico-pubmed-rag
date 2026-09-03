@@ -89,6 +89,7 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 - Latency is logged, not scored against a threshold, in v1. Scoring it before the three correctness metrics are reliable risks optimizing speed at correctness's expense. Threshold scoring is deferred to v2.
 - The MVP is a walking skeleton: one case through the full pipeline once, rough edges allowed. This proves the architecture holds together before any phase gets polished.
 - LLM and embeddings run locally via Ollama (MedGemma 1.5 4B, nomic-embed-text) instead of a hosted API. Chosen to get hands-on experience running open-weight models locally.
+- Case ingestion splits into two components: a dataset-cleaning step (runs once on the full CSV) and a case-loading step (runs per case). This avoids re-cleaning the whole dataset every time one case loads.
 
 ## Docs
 
