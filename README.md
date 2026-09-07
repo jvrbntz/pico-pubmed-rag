@@ -79,6 +79,7 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 - Input quality from MTSamples can be poor: dictated notes, informal phrasing, abbreviations, incomplete sentences. A bad extraction from a messy case is a different failure than bad reasoning over a clear one, and eval reporting keeps them distinguishable.
 - The `medical_specialty` field mixes actual clinical specialties (Surgery, Cardiovascular / Pulmonary) with document types (Discharge Summary, SOAP / Chart / Progress Notes, Letters). Anything that filters or samples by specialty needs to account for this, not treat every value as a real specialty.
 - PICO extraction can misframe a clear case (wrong population, intervention, or outcome). The failure is silent and propagates through search, ranking, and summary, producing a fluent, well-cited, wrong result.
+- Candidate distinctness is enforced by exact string match on population and intervention, not semantic equivalence. Two candidates that describe the same population or intervention in different words can both pass as distinct, even though they aren't.
 - Search translation can under- or over-constrain the query: irrelevant results from poor MeSH mapping, or zero results even after broadening, when the literature is genuinely thin.
 - External dependencies can fail: NCBI rate limits, downtime, or a fetched record missing a field. This needs retry and backoff, not better prompting.
 - Summary generation can hallucinate claims the retrieved abstracts don't support. PMID citations make an unfaithful claim look more credible than an uncited one.
@@ -90,6 +91,7 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 - The MVP is a walking skeleton: one case through the full pipeline once, rough edges allowed. This proves the architecture holds together before any phase gets polished.
 - LLM and embeddings run locally via Ollama (MedGemma 1.5 4B, nomic-embed-text) instead of a hosted API. Chosen to get hands-on experience running open-weight models locally.
 - Case ingestion splits into two components: a dataset-cleaning step (runs once on the full CSV) and a case-loading step (runs per case). This avoids re-cleaning the whole dataset every time one case loads.
+- PICO-candidate generation takes its LLM call as an injected argument rather than calling Ollama directly. Production code passes the real client; tests pass a fake that returns a fixed response. This keeps the parsing and validation logic (count bounds, distinctness, key structure, malformed-output handling) unit-testable without a live model call.
 
 ## Docs
 
