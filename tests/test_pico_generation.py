@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from pico_pubmed_rag.pico_generation import generate_pico_candidates
+from pico_pubmed_rag.pico_generation import build_prompt, generate_pico_candidates
 
 
 @pytest.fixture
@@ -136,6 +136,34 @@ def wrong_keys_llm_call():
     return _wrong_keys_llm_call
 
 
+@pytest.fixture
+def noisy_response_llm_call():
+    def _noisy_response_llm_call(prompt):
+        return (
+            "Here's my resoning about this case...\n"
+            "```json\n"
+            + json.dumps(
+                [
+                    {
+                        "population": "p1",
+                        "intervention": "i1",
+                        "comparison": "c1",
+                        "outcome": "o1",
+                    },
+                    {
+                        "population": "p2",
+                        "intervention": "i2",
+                        "comparison": "c2",
+                        "outcome": "o2",
+                    },
+                ]
+            )
+            + "\n```"
+        )
+
+    return _noisy_response_llm_call
+
+
 def test_generate_pico_candidates_returns_two_four_candidates(fake_llm_call):
     result = generate_pico_candidates("case text", fake_llm_call)
 
@@ -172,3 +200,24 @@ def test_generate_pico_candidates_raises_on_malformed_json(malformed_json_llm_ca
 def test_generate_pico_candidates_raises_on_wrong_keys(wrong_keys_llm_call):
     with pytest.raises(ValueError):
         generate_pico_candidates("case text", wrong_keys_llm_call)
+
+
+def test_build_prompt_returns_a_string():
+    result = build_prompt("case text")
+    assert isinstance(result, str)
+
+
+def test_build_prompt_includes_case_text():
+    result = build_prompt("case text")
+    assert "case text" in result
+
+
+def test_build_prompt_includes_required_keys():
+    result = build_prompt("case text")
+    for key in ["population", "intervention", "comparison", "outcome"]:
+        assert key in result
+
+
+def test_generate_pico_candidates_parses_response_with_noise(noisy_response_llm_call):
+    result = generate_pico_candidates("case text", noisy_response_llm_call)
+    assert len(result) == 2

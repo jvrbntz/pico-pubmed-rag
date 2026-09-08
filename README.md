@@ -49,7 +49,7 @@ Latency, case-in to summary-out, is logged per run but not scored against a thre
 
 | Phase | Delivers | Status |
 |---|---|---|
-| 1 | Repo scaffolding + case ingestion + PICO-candidate generation | in progress |
+| 1 | Repo scaffolding + case ingestion + PICO-candidate generation | done |
 | 2 | PubMed search translation (MeSH mapping, Boolean structure, zero-result broadening) | not started |
 | 3 | Ranking + evidence-summary generation (walking skeleton complete once this lands) | not started |
 | 4 | Eval harness (gold set, PICO-extraction / retrieval-relevance / faithfulness scoring, latency logging) | not started |

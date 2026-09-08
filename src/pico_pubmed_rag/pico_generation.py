@@ -3,17 +3,53 @@
 import json
 
 
+def build_prompt(case_text):
+    return f"""
+    You are a helpful clinical AI assistant and an expert in extracting the most important PICO elements from a case note. 
+
+    Given a clinical case note, extract 2 to 4 distinct PICO (Population, Intervention, Comparison, Outcome) candidates. \
+    Each candidate must be a JSON object with exactly these four keys: "population", "intervention", "comparison", "outcome".
+    Return a JSON list of these objects, and nothing else.
+
+    Here's an example: "45 year-old man presents with sore throat, fever, and tonsilar exudate. Rapid strep test is positive."
+
+    Response:
+    [
+        {{"population": "adults with confirmed strep throat", "intervention": "amoxicillin", "comparison": "penicillin", "outcome" "symptomp resolution"}},
+        {{"population": "adults with confirmed strep throat", "intervention": "watchful waiting", "comparison": "axoxicillin", "outcome": "complication rate"}}
+        ] 
+
+    Now extract PICO candidates from this case note:
+    {case_text}
+"""
+
+
+def _extract_json_array(text):
+    start = text.find("[")
+    end = text.rfind("]")
+    if start == -1 or end == -1 or end < start:
+        raise ValueError(f"No JSON array found in LLM response: {text!r}")
+    return text[start : end + 1]
+
+
 def generate_pico_candidates(case_text, llm_call):
-    response = llm_call(case_text)
+    response = llm_call(build_prompt(case_text))
 
     try:
-        candidates = json.loads(response)
+        candidates = json.loads(_extract_json_array(response))
     except json.JSONDecodeError as e:
         raise ValueError(f"LLM response was not valid JSON: {e}") from e
 
     for candidate in candidates:
-        if set(candidate.keys()) != {"population", "intervention", "comparison", "outcome"}:
-            raise ValueError(f"PICO candidate has unexpected keys: {sorted(candidate.keys())}")
+        if set(candidate.keys()) != {
+            "population",
+            "intervention",
+            "comparison",
+            "outcome",
+        }:
+            raise ValueError(
+                f"PICO candidate has unexpected keys: {sorted(candidate.keys())}"
+            )
 
     if len(candidates) != len(
         {(c["population"], c["intervention"]) for c in candidates}
