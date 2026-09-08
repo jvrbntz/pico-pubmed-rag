@@ -11,12 +11,12 @@ def build_prompt(case_text):
     Each candidate must be a JSON object with exactly these four keys: "population", "intervention", "comparison", "outcome".
     Return a JSON list of these objects, and nothing else.
 
-    Here's an example: "45 year-old man presents with sore throat, fever, and tonsilar exudate. Rapid strep test is positive."
+    Here's an example: "45 year-old man presents with sore throat, fever, and tonsillar exudate. Rapid strep test is positive."
 
     Response:
     [
-        {{"population": "adults with confirmed strep throat", "intervention": "amoxicillin", "comparison": "penicillin", "outcome" "symptomp resolution"}},
-        {{"population": "adults with confirmed strep throat", "intervention": "watchful waiting", "comparison": "axoxicillin", "outcome": "complication rate"}}
+        {{"population": "adults with confirmed strep throat", "intervention": "amoxicillin", "comparison": "penicillin", "outcome": "symptomp resolution"}},
+        {{"population": "adults with confirmed strep throat", "intervention": "watchful waiting", "comparison": "amoxicillin", "outcome": "complication rate"}}
         ] 
 
     Now extract PICO candidates from this case note:
@@ -50,6 +50,11 @@ def generate_pico_candidates(case_text, llm_call):
             raise ValueError(
                 f"PICO candidate has unexpected keys: {sorted(candidate.keys())}"
             )
+
+        if not all(candidate.values()):
+            raise ValueError(
+                f"PICO candidate has a missing or empty value: {candidate}"
+    
 
     if len(candidates) != len(
         {(c["population"], c["intervention"]) for c in candidates}

@@ -164,6 +164,29 @@ def noisy_response_llm_call():
     return _noisy_response_llm_call
 
 
+@pytest.fixture
+def null_value_llm_call():
+    def _null_value_llm_call(prompt):
+        return json.dumps(
+            [
+                {
+                    "population": "adult patients with strep throat",
+                    "intervention": "amoxicillin",
+                    "comparison": None,
+                    "outcome": "symptom resolution",
+                },
+                {
+                    "population": "child with strep throat",
+                    "intervention": "watchful waiting",
+                    "comparison": None,
+                    "outcome": "symptoms worsen",
+                },
+            ]
+        )
+
+    return _null_value_llm_call
+
+
 def test_generate_pico_candidates_returns_two_four_candidates(fake_llm_call):
     result = generate_pico_candidates("case text", fake_llm_call)
 
@@ -221,3 +244,8 @@ def test_build_prompt_includes_required_keys():
 def test_generate_pico_candidates_parses_response_with_noise(noisy_response_llm_call):
     result = generate_pico_candidates("case text", noisy_response_llm_call)
     assert len(result) == 2
+
+
+def test_generate_pico_candidates_raises_on_null_value(null_value_llm_call):
+    with pytest.raises(ValueError):
+        generate_pico_candidates("case text", null_value_llm_call)
