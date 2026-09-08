@@ -54,7 +54,7 @@ def generate_pico_candidates(case_text, llm_call):
         if not all(candidate.values()):
             raise ValueError(
                 f"PICO candidate has a missing or empty value: {candidate}"
-    
+            )
 
     if len(candidates) != len(
         {(c["population"], c["intervention"]) for c in candidates}
