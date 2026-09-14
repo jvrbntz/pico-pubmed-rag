@@ -93,6 +93,7 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 - Case ingestion splits into two components: a dataset-cleaning step (runs once on the full CSV) and a case-loading step (runs per case). This avoids re-cleaning the whole dataset every time one case loads.
 - PICO-candidate generation takes its LLM call as an injected argument rather than calling Ollama directly. Production code passes the real client; tests pass a fake that returns a fixed response. This keeps the parsing and validation logic (count bounds, distinctness, key structure, malformed-output handling) unit-testable without a live model call.
 - A response with any malformed candidate is rejected entirely, not filtered candidate by candidate. Testing against real cases found that a null or missing value usually shows up across every candidate in a response, not just one, so filtering wouldn't have saved the cases that exposed this gap. Retry could fix this more directly and is left for a later, evidence-backed decision.
+- PubMed's own automatic term mapping (ATM) is used for MeSH mapping instead of a hand-built lookup. ATM already maps free-text terms to MeSH headings server-side, so building a separate mapping layer would duplicate work PubMed already does. Boolean structure and publication-type filtering are still built by hand, that part isn't automatic.
 
 ## Docs
 
