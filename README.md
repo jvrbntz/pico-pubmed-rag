@@ -83,6 +83,7 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 - Search translation can under- or over-constrain the query: irrelevant results from poor MeSH mapping, or zero results even after broadening, when the literature is genuinely thin.
 - External dependencies can fail: NCBI rate limits, downtime, or a fetched record missing a field. This needs retry and backoff, not better prompting.
 - Summary generation can hallucinate claims the retrieved abstracts don't support. PMID citations make an unfaithful claim look more credible than an uncited one.
+- Abstract parsing only captures the first `AbstractText` and `PublicationType` element per article. Real PubMed records commonly have multiple of each (structured abstracts split into background/methods/results/conclusions, or multiple publication types like "Journal Article" and "Randomized Controlled Trial"), so parsing can silently drop sections or the more informative publication type.
 
 ## Key Design Decisions
 
