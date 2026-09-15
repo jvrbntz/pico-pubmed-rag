@@ -65,6 +65,7 @@ def sample_pubmed_xml():
         </Abstract>
         <PublicationTypeList>
           <PublicationType>Randomized Controlled Trial</PublicationType>
+          <PublicationType>Journal Article</PublicationType>
         </PublicationTypeList>
         <Journal>
           <JournalIssue>
@@ -162,5 +163,5 @@ def test_parse_pubmed_xml_returns_correct_values(sample_pubmed_xml):
         result[0]["text"]
         == "A randomized trial comparing outcomes between amoxicillin and penicillin."
     )
-    assert result[0]["publication_type"] == "Randomized Controlled Trial"
+    assert result[0]["publication_type"] == ["Randomized Controlled Trial", "Journal Article"]
     assert result[0]["publication_date"] == "2019"
