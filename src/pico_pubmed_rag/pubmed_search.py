@@ -18,6 +18,16 @@ def search_pubmed(query, http_get):
         raise ValueError(f"Malformed PubMed search response: {response!r}") from e
 
 
+def search_pubmed_with_broadening(query, http_get):
+    results = search_pubmed(query, http_get)
+    if not results:
+        broadened_query = query.replace(
+            " AND (Randomized Controlled Trial[pt] OR Systematic Review[pt])", ""
+        )
+        results = search_pubmed(broadened_query, http_get)
+    return results
+
+
 def fetch_abstracts(pmids, http_get):
     response = http_get(pmids)
     return response
@@ -50,7 +60,13 @@ def esearch_get(query):
             "NCBI_TOOL_NAME and NCBI_EMAIL must be set. Copy .env.example to .env and fill it in."
         )
 
-    params = {"db": "pubmed", "term": query, "retmode": "json", "tool": tool, "email": email}
+    params = {
+        "db": "pubmed",
+        "term": query,
+        "retmode": "json",
+        "tool": tool,
+        "email": email,
+    }
     if os.environ.get("NCBI_API_KEY"):
         params["api_key"] = os.environ["NCBI_API_KEY"]
 
@@ -68,7 +84,13 @@ def efetch_get(pmids):
             "NCBI_TOOL_NAME and NCBI_EMAIL must be set. Copy .env.example to .env and fill it in."
         )
 
-    params = {"db": "pubmed", "id": ",".join(pmids), "retmode": "xml", "tool": tool, "email": email}
+    params = {
+        "db": "pubmed",
+        "id": ",".join(pmids),
+        "retmode": "xml",
+        "tool": tool,
+        "email": email,
+    }
     if os.environ.get("NCBI_API_KEY"):
         params["api_key"] = os.environ["NCBI_API_KEY"]
 

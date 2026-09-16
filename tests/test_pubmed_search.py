@@ -7,6 +7,7 @@ from pico_pubmed_rag.pubmed_search import (
     fetch_abstracts,
     parse_pubmed_xml,
     search_pubmed,
+    search_pubmed_with_broadening,
 )
 
 
@@ -97,6 +98,16 @@ def sample_pubmed_xml():
 </PubmedArticleSet>"""
 
 
+@pytest.fixture
+def http_get_needs_broadening():
+    def _http_get_needs_broadening(query):
+        if "[pt]" in query:
+            return {"esearchresult": {"idlist": []}}
+        return {"esearchresult": {"idlist": ["12345", "23456"]}}
+
+    return _http_get_needs_broadening
+
+
 def test_build_search_query_returns_string(sample_pico):
     result = build_search_query(sample_pico)
     assert isinstance(result, str)
@@ -163,5 +174,18 @@ def test_parse_pubmed_xml_returns_correct_values(sample_pubmed_xml):
         result[0]["text"]
         == "A randomized trial comparing outcomes between amoxicillin and penicillin."
     )
-    assert result[0]["publication_type"] == ["Randomized Controlled Trial", "Journal Article"]
+    assert result[0]["publication_type"] == [
+        "Randomized Controlled Trial",
+        "Journal Article",
+    ]
     assert result[0]["publication_date"] == "2019"
+
+
+def test_search_pubmed_with_broadening_returns_results_from_broadening_query(
+    http_get_needs_broadening,
+):
+    result = search_pubmed_with_broadening(
+        "search_terms AND (Randomized Controlled Trial[pt] OR Systematic Review[pt])",
+        http_get_needs_broadening,
+    )
+    assert result == ["12345", "23456"]
