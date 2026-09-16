@@ -51,7 +51,7 @@ Latency, case-in to summary-out, is logged per run but not scored against a thre
 |---|---|---|
 | 1 | Repo scaffolding + case ingestion + PICO-candidate generation | done |
 | 2 | PubMed search translation, retrieval, and parsing (MeSH mapping, Boolean structure, zero-result broadening, esearch/efetch, abstract parsing) | done |
-| 3 | Ranking + evidence-summary generation (walking skeleton complete once this lands) | in progress |
+| 3 | Ranking + evidence-summary generation (walking skeleton complete once this lands) | done |
 | 4 | Eval harness (gold set, PICO-extraction / retrieval-relevance / faithfulness scoring, latency logging) | not started |
 
 Acceptance criteria per phase are written before that phase's code, and enforced as tests. See `CLAUDE.md`'s Build workflow section.
@@ -79,12 +79,14 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 - Input quality from MTSamples can be poor: dictated notes, informal phrasing, abbreviations, incomplete sentences. A bad extraction from a messy case is a different failure than bad reasoning over a clear one, and eval reporting keeps them distinguishable.
 - The `medical_specialty` field mixes actual clinical specialties (Surgery, Cardiovascular / Pulmonary) with document types (Discharge Summary, SOAP / Chart / Progress Notes, Letters). Anything that filters or samples by specialty needs to account for this, not treat every value as a real specialty.
 - PICO extraction can misframe a clear case (wrong population, intervention, or outcome). This shows up repeatedly on diagnostic-report notes like echocardiograms and imaging follow-ups, where a diagnostic or monitoring action gets labeled as the intervention instead of an actual treatment choice. The failure is silent and propagates through search, ranking, and summary, producing a fluent, well-cited, wrong result.
+- PICO candidates can be entirely unrelated to the case, not just misframed. Observed once on 2026-09-16: a candidate for "adults with confirmed strep throat, amoxicillin" generated for a case entirely about bariatric surgery, verbatim matching `build_prompt`'s own worked example. The model leaked its few-shot example back as content instead of treating it as a format template. The prompt now explicitly instructs against reusing the example; not yet confirmed whether this fully resolves it.
 - Candidate distinctness is enforced by exact string match on population and intervention, not semantic equivalence. Two candidates that describe the same population or intervention in different words can both pass as distinct, even though they aren't.
 - Search translation can under- or over-constrain the query: irrelevant results from poor MeSH mapping, or zero results even after broadening, when the literature is genuinely thin.
 - External dependencies can fail: NCBI rate limits, downtime, or a fetched record missing a field. This needs retry and backoff, not better prompting.
 - Summary generation can hallucinate claims the retrieved abstracts don't support. PMID citations make an unfaithful claim look more credible than an uncited one.
 - Abstract parsing only captures the first `AbstractText` element per article. Real PubMed records commonly have multiple, structured abstracts split into background/methods/results/conclusions, so parsing can silently drop sections. A related gap, only capturing the first `PublicationType`, was caught against real PubMed data on 2026-09-15 and fixed; see Key Design Decisions.
 - Zero-result broadening only tries one fallback: dropping the publication-type filter. It does not yet widen MeSH terms or drop a less-essential PICO element if that single broadening step still returns nothing.
+- `build_search_query` only uses population and intervention, never comparison or outcome. Searches can match abstracts about the right population and intervention that never address the actual comparison being asked about, which is a real, observed cause of `generate_summary`'s abstracts-don't-answer-the-question responses, not just a search-relevance issue.
 
 ## Key Design Decisions
 
