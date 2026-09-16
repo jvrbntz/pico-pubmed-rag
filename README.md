@@ -51,7 +51,7 @@ Latency, case-in to summary-out, is logged per run but not scored against a thre
 |---|---|---|
 | 1 | Repo scaffolding + case ingestion + PICO-candidate generation | done |
 | 2 | PubMed search translation, retrieval, and parsing (MeSH mapping, Boolean structure, zero-result broadening, esearch/efetch, abstract parsing) | done |
-| 3 | Ranking + evidence-summary generation (walking skeleton complete once this lands) | not started |
+| 3 | Ranking + evidence-summary generation (walking skeleton complete once this lands) | in progress |
 | 4 | Eval harness (gold set, PICO-extraction / retrieval-relevance / faithfulness scoring, latency logging) | not started |
 
 Acceptance criteria per phase are written before that phase's code, and enforced as tests. See `CLAUDE.md`'s Build workflow section.
