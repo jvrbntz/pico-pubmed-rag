@@ -50,7 +50,7 @@ Latency, case-in to summary-out, is logged per run but not scored against a thre
 | Phase | Delivers | Status |
 |---|---|---|
 | 1 | Repo scaffolding + case ingestion + PICO-candidate generation | done |
-| 2 | PubMed search translation (MeSH mapping, Boolean structure, zero-result broadening) | in progress |
+| 2 | PubMed search translation, retrieval, and parsing (MeSH mapping, Boolean structure, zero-result broadening, esearch/efetch, abstract parsing) | done |
 | 3 | Ranking + evidence-summary generation (walking skeleton complete once this lands) | not started |
 | 4 | Eval harness (gold set, PICO-extraction / retrieval-relevance / faithfulness scoring, latency logging) | not started |
 
@@ -64,7 +64,7 @@ Clinical cases come from [MTSamples](https://mtsamples.com) (educational use, wi
 
 ```bash
 uv sync
-cp .env.example .env   # fill in NCBI_API_KEY, NCBI_EMAIL, OLLAMA_LLM_MODEL
+cp .env.example .env   # fill in NCBI_EMAIL (required); NCBI_API_KEY and OLLAMA_HOST are optional
 ollama pull nomic-embed-text
 ollama pull <the model tag you set in OLLAMA_LLM_MODEL>
 uv run python scripts/download_data.py
@@ -83,7 +83,8 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 - Search translation can under- or over-constrain the query: irrelevant results from poor MeSH mapping, or zero results even after broadening, when the literature is genuinely thin.
 - External dependencies can fail: NCBI rate limits, downtime, or a fetched record missing a field. This needs retry and backoff, not better prompting.
 - Summary generation can hallucinate claims the retrieved abstracts don't support. PMID citations make an unfaithful claim look more credible than an uncited one.
-- Abstract parsing only captures the first `AbstractText` element per article. Real PubMed records commonly have multiple, structured abstracts split into background/methods/results/conclusions, so parsing can silently drop sections. Confirmed against real PubMed data on 2026-09-15: a live query returned only "Journal Article" for every result's publication type until `publication_type` was changed to capture all `PublicationType` values as a list instead of just the first.
+- Abstract parsing only captures the first `AbstractText` element per article. Real PubMed records commonly have multiple, structured abstracts split into background/methods/results/conclusions, so parsing can silently drop sections. A related gap, only capturing the first `PublicationType`, was caught against real PubMed data on 2026-09-15 and fixed; see Key Design Decisions.
+- Zero-result broadening only tries one fallback: dropping the publication-type filter. It does not yet widen MeSH terms or drop a less-essential PICO element if that single broadening step still returns nothing.
 
 ## Key Design Decisions
 
@@ -95,6 +96,8 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 - PICO-candidate generation takes its LLM call as an injected argument rather than calling Ollama directly. Production code passes the real client; tests pass a fake that returns a fixed response. This keeps the parsing and validation logic (count bounds, distinctness, key structure, malformed-output handling) unit-testable without a live model call.
 - A response with any malformed candidate is rejected entirely, not filtered candidate by candidate. Testing against real cases found that a null or missing value usually shows up across every candidate in a response, not just one, so filtering wouldn't have saved the cases that exposed this gap. Retry could fix this more directly and is left for a later, evidence-backed decision.
 - PubMed's own automatic term mapping (ATM) is used for MeSH mapping instead of a hand-built lookup. ATM already maps free-text terms to MeSH headings server-side, so building a separate mapping layer would duplicate work PubMed already does. Boolean structure and publication-type filtering are still built by hand, that part isn't automatic.
+- `publication_type` captures every `PublicationType` value per article as a list, not just the first. A live query on 2026-09-15 showed why: every result came back as "Journal Article" only, even though the search filtered for RCT/systematic review, since the first parsing pass grabbed the generic type instead of the one that actually matched.
+- Zero-result broadening is a separate function from `search_pubmed`, not a change to it. Modifying `search_pubmed` directly to retry internally would have broken its own already-tested guarantee that it returns `[]` on zero results with no retry.
 
 ## Docs
 
