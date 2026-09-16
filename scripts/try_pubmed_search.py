@@ -1,7 +1,8 @@
-"""One-time manual check: runs a PICO through the real PubMed search, fetch, and parse chain against NCBI's live E-utilities API."""
+"""One-time manual check: runs a PICO through the real PubMed search, fetch, parse, and rank chain against NCBI's live E-utilities API."""
 
 from dotenv import load_dotenv
 
+from pico_pubmed_rag.abstract_ranking import rank_abstracts
 from pico_pubmed_rag.pubmed_search import (
     build_search_query,
     efetch_get,
@@ -25,11 +26,12 @@ if __name__ == "__main__":
     print(f"Query: {query}\n")
 
     pmids = search_pubmed(query, esearch_get)
-    print(f"Found {len(pmids)} PMIDs, showing the first 3: {pmids[:3]}\n")
+    print(f"Found {len(pmids)} PMIDs, showing the first 10: {pmids[:10]}\n")
 
     if pmids:
-        xml_text = fetch_abstracts(pmids[:3], efetch_get)
+        xml_text = fetch_abstracts(pmids[:10], efetch_get)
         abstracts = parse_pubmed_xml(xml_text)
-        for abstract in abstracts:
-            print(abstract)
-            print()
+
+        ranked = rank_abstracts(abstracts)
+        for abstract in ranked:
+            print(abstract["pmid"], abstract["publication_type"], abstract["publication_date"])

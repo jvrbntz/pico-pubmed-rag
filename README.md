@@ -98,6 +98,7 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 - PubMed's own automatic term mapping (ATM) is used for MeSH mapping instead of a hand-built lookup. ATM already maps free-text terms to MeSH headings server-side, so building a separate mapping layer would duplicate work PubMed already does. Boolean structure and publication-type filtering are still built by hand, that part isn't automatic.
 - `publication_type` captures every `PublicationType` value per article as a list, not just the first. A live query on 2026-09-15 showed why: every result came back as "Journal Article" only, even though the search filtered for RCT/systematic review, since the first parsing pass grabbed the generic type instead of the one that actually matched.
 - Zero-result broadening is a separate function from `search_pubmed`, not a change to it. Modifying `search_pubmed` directly to retry internally would have broken its own already-tested guarantee that it returns `[]` on zero results with no retry.
+- Summary generation skips the embedding/in-memory-index step for now, working directly off ranked abstracts. Ranking already selects by evidence tier and recency, and with only ~10 fetched abstracts, embeddings aren't proven necessary yet. Still planned via nomic-embed-text, once the simpler version runs end to end.
 
 ## Docs
 
