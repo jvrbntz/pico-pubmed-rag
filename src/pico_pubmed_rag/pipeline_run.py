@@ -66,12 +66,7 @@ def run_pipeline(case_id, dataset, model_call, search_call, fetch_call, run_meta
         stages["build_search_query"] = _failure_record(exc)
         return {"run_outcome": "failed", "stages": stages}
 
-    search_call_records = []
-
-    def recording_search_call(query):
-        response = search_call(query)
-        search_call_records.append({"query": query, "response": response})
-        return response
+    recording_search_call, search_call_records = _recording_call(search_call, "query")
 
     try:
         pmids = search_pubmed_with_broadening(query, recording_search_call)
@@ -92,12 +87,7 @@ def run_pipeline(case_id, dataset, model_call, search_call, fetch_call, run_meta
             stages[name] = {"status": "skipped", "skip_reason": "no_evidence"}
         return {"run_outcome": "no_evidence", "stages": stages}
 
-    fetch_call_records = []
-
-    def recording_fetch_call(pmids):
-        response = fetch_call(pmids)
-        fetch_call_records.append({"pmids": pmids, "response": response})
-        return response
+    recording_fetch_call, fetch_call_records = _recording_call(fetch_call, "pmids")
 
     try:
         xml_text = fetch_abstracts(pmids[:FETCH_SIZE], recording_fetch_call)
@@ -127,14 +117,34 @@ def run_pipeline(case_id, dataset, model_call, search_call, fetch_call, run_meta
         stages["rank"] = _failure_record(exc)
         return {"run_outcome": "failed", "stages": stages}
 
+    recording_summary_call, summary_call_records = _recording_call(model_call, "prompt")
+
     try:
-        summary = generate_summary(pico, ranked, model_call)
-        stages["generate_summary"] = {"status": "succeeded", "output": summary}
+        summary = generate_summary(pico, ranked, recording_summary_call)
+        stages["generate_summary"] = {
+            "status": "succeeded",
+            "output": summary,
+            "call_records": summary_call_records,
+        }
     except Exception as exc:
-        stages["generate_summary"] = _failure_record(exc)
+        stages["generate_summary"] = {
+            **_failure_record(exc),
+            "call_records": summary_call_records,
+        }
         return {"run_outcome": "failed", "stages": stages}
 
     return {"run_outcome": "completed", "stages": stages}
+
+
+def _recording_call(real_call, input_name):
+    records = []
+
+    def recording_call(call_input):
+        response = real_call(call_input)
+        records.append({input_name: call_input, "response": response})
+        return response
+
+    return recording_call, records
 
 
 def _failure_record(exc):

@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from pico_pubmed_rag.pipeline_run import run_pipeline
+from pico_pubmed_rag.summary_generation import generate_summary
 
 RUN_METADATA = {"git_commit": "abc123"}
 
@@ -88,6 +89,17 @@ VALID_PICO_RESPONSE = (
 NO_CLEAR_ANSWER_SUMMARY = (
     "No Clear Answer: None of the retrieved abstracts compare metformin "
     "with sulfonylurea for this population."
+)
+
+
+UNCITED_SUMMARY = (
+    "Evidence Summary: Metformin lowered HbA1c more than sulfonylurea. "
+    "This is not a diagnosis or treatment recommendation."
+)
+
+VALID_SUMMARY = (
+    "Evidence Summary: Metformin lowered HbA1c more than sulfonylurea "
+    "(PMID: 1234567). This is not a diagnosis or treatment recommendation."
 )
 
 
@@ -487,6 +499,92 @@ def test_no_clear_answer_summary_completes_run(
     summary_record = trace["stages"]["generate_summary"]
     assert summary_record["status"] == "succeeded"
     assert summary_record["output"].startswith("No Clear Answer:")
+
+
+def test_summary_retry_records_both_attempts(
+    dataset_with_case_87,
+    search_call_strict_hits,
+    fetch_call_valid_xml,
+):
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=scripted_model_call(
+            [VALID_PICO_RESPONSE, UNCITED_SUMMARY, VALID_SUMMARY]
+        ),
+        search_call=search_call_strict_hits,
+        fetch_call=fetch_call_valid_xml,
+        run_metadata=RUN_METADATA,
+    )
+
+    assert trace["run_outcome"] == "completed"
+
+    call_records = trace["stages"]["generate_summary"]["call_records"]
+    assert len(call_records) == 2
+    assert call_records[0]["response"] == UNCITED_SUMMARY
+    assert call_records[1]["response"] == VALID_SUMMARY
+
+
+def test_summary_both_attempts_fail_keeps_both_responses(
+    dataset_with_case_87,
+    search_call_strict_hits,
+    fetch_call_valid_xml,
+):
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=scripted_model_call(
+            [VALID_PICO_RESPONSE, UNCITED_SUMMARY, UNCITED_SUMMARY]
+        ),
+        search_call=search_call_strict_hits,
+        fetch_call=fetch_call_valid_xml,
+        run_metadata=RUN_METADATA,
+    )
+
+    assert trace["run_outcome"] == "failed"
+
+    summary_record = trace["stages"]["generate_summary"]
+    assert summary_record["status"] == "failed"
+    assert summary_record["failure_tag"] == "validation"
+    assert [r["response"] for r in summary_record["call_records"]] == [
+        UNCITED_SUMMARY,
+        UNCITED_SUMMARY,
+    ]
+
+    for stage_name in [
+        "load_case",
+        "generate_pico_candidates",
+        "select_pico",
+        "build_search_query",
+        "search",
+        "fetch",
+        "parse",
+        "rank",
+    ]:
+        assert trace["stages"][stage_name]["status"] == "succeeded"
+
+
+def test_tracing_does_not_change_summary(
+    dataset_with_case_87,
+    search_call_strict_hits,
+    fetch_call_valid_xml,
+):
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SUMMARY]),
+        search_call=search_call_strict_hits,
+        fetch_call=fetch_call_valid_xml,
+        run_metadata=RUN_METADATA,
+    )
+
+    direct_summary = generate_summary(
+        trace["stages"]["select_pico"]["output"],
+        trace["stages"]["rank"]["output"],
+        scripted_model_call([VALID_SUMMARY]),
+    )
+
+    assert trace["stages"]["generate_summary"]["output"] == direct_summary
 
 
 def test_pico_validation_failure_on_missing_outcome_key(
