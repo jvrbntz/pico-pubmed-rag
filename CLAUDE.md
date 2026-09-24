@@ -27,7 +27,7 @@ A clinical evidence-support tool: clinical case → candidate PICO queries → u
 
 README's phase table groups related work into milestones. The unit of work is the component within a phase, not the phase itself: Phase 1's dataset-cleaning, case-loading, and PICO-candidate generation are three separate components, each with its own acceptance criteria and tests.
 
-Before starting a component, write its acceptance criteria as a short list, concrete and checkable ("2-4 PICO candidates, no two identical on both P and I," not "generates output"). Acceptance criteria become tests: write the failing test for a criterion, then the code that passes it. A component isn't done when the code runs. It's done when every criterion has a passing test. A phase is done when all its components are done. Commit messages state what was built and which criteria the tests now cover.
+Before starting a component, write its acceptance criteria as a short list, concrete and checkable ("2-4 PICO candidates, no two identical on both P and I," not "generates output"). Acceptance criteria become tests: write the failing test for a criterion, then the code that passes it. Do this one criterion at a time. Don't write a component's full test list in one batch and then implement against all of it at once; that produces tests that don't guide the implementation, just numbers that happen to pass. A component isn't done when the code runs. It's done when every criterion has a passing test. A phase is done when all its components are done. Commit messages state what was built and which criteria the tests now cover.
 
 Spec one component at a time. Don't write acceptance criteria for a future component before the current one's tests pass.
 
