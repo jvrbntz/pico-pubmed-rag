@@ -587,6 +587,100 @@ def test_tracing_does_not_change_summary(
     assert trace["stages"]["generate_summary"]["output"] == direct_summary
 
 
+PIPELINE_ORDER = [
+    "load_case",
+    "generate_pico_candidates",
+    "select_pico",
+    "build_search_query",
+    "search",
+    "fetch",
+    "parse",
+    "rank",
+    "generate_summary",
+]
+
+
+def test_completed_run_has_all_stages_and_header(
+    dataset_with_case_87,
+    search_call_strict_hits,
+    fetch_call_valid_xml,
+):
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SUMMARY]),
+        search_call=search_call_strict_hits,
+        fetch_call=fetch_call_valid_xml,
+        run_metadata=RUN_METADATA,
+    )
+
+    assert trace["run_outcome"] == "completed"
+    assert list(trace["stages"]) == PIPELINE_ORDER
+    assert all(record["status"] == "succeeded" for record in trace["stages"].values())
+
+    assert trace["case_id"] == 87
+    assert trace["run_metadata"] == RUN_METADATA
+    assert trace["run_id"]
+    assert trace["schema_version"] == 1
+    assert trace["started_at"].endswith("+00:00")
+    assert trace["total_latency_s"] >= 0
+
+
+def test_stages_are_tagged_by_service(
+    dataset_with_case_87,
+    search_call_strict_hits,
+    fetch_call_valid_xml,
+):
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SUMMARY]),
+        search_call=search_call_strict_hits,
+        fetch_call=fetch_call_valid_xml,
+        run_metadata=RUN_METADATA,
+    )
+
+    services = {name: record["service"] for name, record in trace["stages"].items()}
+    assert services == {
+        "load_case": "none",
+        "generate_pico_candidates": "local",
+        "select_pico": "none",
+        "build_search_query": "none",
+        "search": "external",
+        "fetch": "external",
+        "parse": "none",
+        "rank": "none",
+        "generate_summary": "local",
+    }
+
+
+def test_repeat_runs_differ_only_in_id_timestamp_and_latency(
+    dataset_with_case_87,
+    search_call_strict_hits,
+    fetch_call_valid_xml,
+):
+    traces = [
+        run_pipeline(
+            case_id=87,
+            dataset=dataset_with_case_87,
+            model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SUMMARY]),
+            search_call=search_call_strict_hits,
+            fetch_call=fetch_call_valid_xml,
+            run_metadata=RUN_METADATA,
+        )
+        for _ in range(2)
+    ]
+
+    assert traces[0]["run_id"] != traces[1]["run_id"]
+
+    varying_fields = {"run_id", "started_at", "total_latency_s"}
+    stable_parts = [
+        {key: value for key, value in trace.items() if key not in varying_fields}
+        for trace in traces
+    ]
+    assert stable_parts[0] == stable_parts[1]
+
+
 def test_pico_validation_failure_on_missing_outcome_key(
     dataset_with_case_87,
     pico_response_missing_outcome_llm_call,
