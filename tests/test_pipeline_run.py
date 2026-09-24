@@ -78,6 +78,28 @@ def valid_pico_llm_call():
     return _model_call
 
 
+VALID_PICO_RESPONSE = (
+    '[{"population": "adults with type 2 diabetes", "intervention": "metformin", '
+    '"comparison": "sulfonylurea", "outcome": "HbA1c reduction"}, '
+    '{"population": "adults with type 2 diabetes", "intervention": "lifestyle modification", '
+    '"comparison": "metformin", "outcome": "weight loss"}]'
+)
+
+NO_CLEAR_ANSWER_SUMMARY = (
+    "No Clear Answer: None of the retrieved abstracts compare metformin "
+    "with sulfonylurea for this population."
+)
+
+
+def scripted_model_call(responses):
+    remaining = list(responses)
+
+    def _model_call(prompt):
+        return remaining.pop(0)
+
+    return _model_call
+
+
 @pytest.fixture
 def search_call_strict_empty_broadened_hits():
     def _search_call(query):
@@ -444,6 +466,27 @@ def test_fetch_records_pmids_sent_and_raw_xml(
     assert len(call_records) == 1
     assert call_records[0]["pmids"] == SEVEN_PMIDS[:5]
     assert call_records[0]["response"] == VALID_XML
+
+
+def test_no_clear_answer_summary_completes_run(
+    dataset_with_case_87,
+    search_call_strict_hits,
+    fetch_call_valid_xml,
+):
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=scripted_model_call([VALID_PICO_RESPONSE, NO_CLEAR_ANSWER_SUMMARY]),
+        search_call=search_call_strict_hits,
+        fetch_call=fetch_call_valid_xml,
+        run_metadata=RUN_METADATA,
+    )
+
+    assert trace["run_outcome"] == "completed"
+
+    summary_record = trace["stages"]["generate_summary"]
+    assert summary_record["status"] == "succeeded"
+    assert summary_record["output"].startswith("No Clear Answer:")
 
 
 def test_pico_validation_failure_on_missing_outcome_key(

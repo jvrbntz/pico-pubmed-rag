@@ -2,6 +2,7 @@
 
 import traceback
 
+from pico_pubmed_rag.abstract_ranking import rank_abstracts
 from pico_pubmed_rag.case_loading import load_case
 from pico_pubmed_rag.pico_generation import generate_pico_candidates
 from pico_pubmed_rag.pico_selection import select_pico
@@ -11,6 +12,7 @@ from pico_pubmed_rag.pubmed_search import (
     parse_pubmed_xml,
     search_pubmed_with_broadening,
 )
+from pico_pubmed_rag.summary_generation import generate_summary
 
 FETCH_SIZE = 5
 
@@ -118,9 +120,21 @@ def run_pipeline(case_id, dataset, model_call, search_call, fetch_call, run_meta
         stages["parse"] = _failure_record(exc)
         return {"run_outcome": "failed", "stages": stages}
 
-    # Remaining stages not implemented yet; each stage's skip stays in place
-    # until its own criterion is built.
-    return {"run_outcome": "failed", "stages": stages}
+    try:
+        ranked = rank_abstracts(abstracts)
+        stages["rank"] = {"status": "succeeded", "output": ranked}
+    except Exception as exc:
+        stages["rank"] = _failure_record(exc)
+        return {"run_outcome": "failed", "stages": stages}
+
+    try:
+        summary = generate_summary(pico, ranked, model_call)
+        stages["generate_summary"] = {"status": "succeeded", "output": summary}
+    except Exception as exc:
+        stages["generate_summary"] = _failure_record(exc)
+        return {"run_outcome": "failed", "stages": stages}
+
+    return {"run_outcome": "completed", "stages": stages}
 
 
 def _failure_record(exc):
