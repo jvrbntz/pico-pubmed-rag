@@ -10,6 +10,7 @@ from pico_pubmed_rag.case_loading import load_case
 from pico_pubmed_rag.pico_generation import generate_pico_candidates
 from pico_pubmed_rag.pico_selection import select_pico
 from pico_pubmed_rag.pubmed_search import (
+    ConfigurationError,
     build_search_query,
     fetch_abstracts,
     parse_pubmed_xml,
@@ -58,51 +59,49 @@ def run_pipeline(case_id, dataset, model_call, search_call, fetch_call, run_meta
             "stages": stages,
         }
 
-    try:
-        case = load_case(dataset, case_id)
-        stages["load_case"] = {"status": "succeeded", "output": case}
-    except Exception as exc:
-        stages["load_case"] = _failure_record(exc)
+    def run_stage(name, work, call_records=None):
+        stage_start = time.perf_counter()
+        try:
+            output = work()
+        except Exception as exc:
+            stages[name] = _failure_record(exc)
+            succeeded, output = False, None
+        else:
+            stages[name] = {"status": "succeeded", "output": output}
+            succeeded = True
+        stages[name]["latency_s"] = time.perf_counter() - stage_start
+        if call_records is not None:
+            stages[name]["call_records"] = call_records
+        return succeeded, output
+
+    ok, case = run_stage("load_case", lambda: load_case(dataset, case_id))
+    if not ok:
         return finish("failed")
 
-    try:
-        candidates = generate_pico_candidates(case["transcription"], model_call)
-        stages["generate_pico_candidates"] = {
-            "status": "succeeded",
-            "output": candidates,
-        }
-    except Exception as exc:
-        stages["generate_pico_candidates"] = _failure_record(exc)
+    recording_pico_call, pico_call_records = _recording_call(model_call, "prompt")
+    ok, candidates = run_stage(
+        "generate_pico_candidates",
+        lambda: generate_pico_candidates(case["transcription"], recording_pico_call),
+        pico_call_records,
+    )
+    if not ok:
         return finish("failed")
 
-    try:
-        pico = select_pico(candidates)
-        stages["select_pico"] = {"status": "succeeded", "output": pico}
-    except Exception as exc:
-        stages["select_pico"] = _failure_record(exc)
+    ok, pico = run_stage("select_pico", lambda: select_pico(candidates))
+    if not ok:
         return finish("failed")
 
-    try:
-        query = build_search_query(pico)
-        stages["build_search_query"] = {"status": "succeeded", "output": query}
-    except Exception as exc:
-        stages["build_search_query"] = _failure_record(exc)
+    ok, query = run_stage("build_search_query", lambda: build_search_query(pico))
+    if not ok:
         return finish("failed")
 
     recording_search_call, search_call_records = _recording_call(search_call, "query")
-
-    try:
-        pmids = search_pubmed_with_broadening(query, recording_search_call)
-        stages["search"] = {
-            "status": "succeeded",
-            "output": pmids,
-            "call_records": search_call_records,
-        }
-    except Exception as exc:
-        stages["search"] = {
-            **_failure_record(exc),
-            "call_records": search_call_records,
-        }
+    ok, pmids = run_stage(
+        "search",
+        lambda: search_pubmed_with_broadening(query, recording_search_call),
+        search_call_records,
+    )
+    if not ok:
         return finish("failed")
 
     if not pmids:
@@ -111,49 +110,29 @@ def run_pipeline(case_id, dataset, model_call, search_call, fetch_call, run_meta
         return finish("no_evidence")
 
     recording_fetch_call, fetch_call_records = _recording_call(fetch_call, "pmids")
-
-    try:
-        xml_text = fetch_abstracts(pmids[:FETCH_SIZE], recording_fetch_call)
-        stages["fetch"] = {
-            "status": "succeeded",
-            "output": xml_text,
-            "call_records": fetch_call_records,
-        }
-    except Exception as exc:
-        stages["fetch"] = {
-            **_failure_record(exc),
-            "call_records": fetch_call_records,
-        }
+    ok, xml_text = run_stage(
+        "fetch",
+        lambda: fetch_abstracts(pmids[:FETCH_SIZE], recording_fetch_call),
+        fetch_call_records,
+    )
+    if not ok:
         return finish("failed")
 
-    try:
-        abstracts = parse_pubmed_xml(xml_text)
-        stages["parse"] = {"status": "succeeded", "output": abstracts}
-    except Exception as exc:
-        stages["parse"] = _failure_record(exc)
+    ok, abstracts = run_stage("parse", lambda: parse_pubmed_xml(xml_text))
+    if not ok:
         return finish("failed")
 
-    try:
-        ranked = rank_abstracts(abstracts)
-        stages["rank"] = {"status": "succeeded", "output": ranked}
-    except Exception as exc:
-        stages["rank"] = _failure_record(exc)
+    ok, ranked = run_stage("rank", lambda: rank_abstracts(abstracts))
+    if not ok:
         return finish("failed")
 
     recording_summary_call, summary_call_records = _recording_call(model_call, "prompt")
-
-    try:
-        summary = generate_summary(pico, ranked, recording_summary_call)
-        stages["generate_summary"] = {
-            "status": "succeeded",
-            "output": summary,
-            "call_records": summary_call_records,
-        }
-    except Exception as exc:
-        stages["generate_summary"] = {
-            **_failure_record(exc),
-            "call_records": summary_call_records,
-        }
+    ok, _ = run_stage(
+        "generate_summary",
+        lambda: generate_summary(pico, ranked, recording_summary_call),
+        summary_call_records,
+    )
+    if not ok:
         return finish("failed")
 
     return finish("completed")
@@ -163,7 +142,13 @@ def _recording_call(real_call, input_name):
     records = []
 
     def recording_call(call_input):
-        response = real_call(call_input)
+        try:
+            response = real_call(call_input)
+        except Exception as exc:
+            records.append(
+                {input_name: call_input, "error": f"{type(exc).__name__}: {exc}"}
+            )
+            raise
         records.append({input_name: call_input, "response": response})
         return response
 
@@ -171,7 +156,12 @@ def _recording_call(real_call, input_name):
 
 
 def _failure_record(exc):
-    tag = "validation" if isinstance(exc, ValueError) else "unexpected"
+    if isinstance(exc, ConfigurationError):
+        tag = "configuration"
+    elif isinstance(exc, ValueError):
+        tag = "validation"
+    else:
+        tag = "unexpected"
     return {
         "status": "failed",
         "failure_tag": tag,

@@ -3,7 +3,10 @@
 import pytest
 
 from pico_pubmed_rag.pubmed_search import (
+    ConfigurationError,
     build_search_query,
+    efetch_get,
+    esearch_get,
     fetch_abstracts,
     parse_pubmed_xml,
     search_pubmed,
@@ -189,3 +192,15 @@ def test_search_pubmed_with_broadening_returns_results_from_broadening_query(
         http_get_needs_broadening,
     )
     assert result == ["12345", "23456"]
+
+
+def test_esearch_get_raises_configuration_error_without_ncbi_settings(monkeypatch):
+    monkeypatch.delenv("NCBI_EMAIL", raising=False)
+    with pytest.raises(ConfigurationError):
+        esearch_get("metformin")
+
+
+def test_efetch_get_raises_configuration_error_without_ncbi_settings(monkeypatch):
+    monkeypatch.delenv("NCBI_TOOL_NAME", raising=False)
+    with pytest.raises(ConfigurationError):
+        efetch_get(["1234567"])

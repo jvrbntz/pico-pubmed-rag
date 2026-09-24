@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from pico_pubmed_rag.pipeline_run import run_pipeline
+from pico_pubmed_rag.pubmed_search import ConfigurationError
 from pico_pubmed_rag.summary_generation import generate_summary
 
 RUN_METADATA = {"git_commit": "abc123"}
@@ -283,6 +284,7 @@ def test_pico_validation_failure_on_unparseable_response(
     pico_record = trace["stages"]["generate_pico_candidates"]
     assert pico_record["status"] == "failed"
     assert pico_record["failure_tag"] == "validation"
+    assert pico_record["call_records"][0]["response"] == "not json"
 
     for stage_name in [
         "select_pico",
@@ -673,12 +675,123 @@ def test_repeat_runs_differ_only_in_id_timestamp_and_latency(
 
     assert traces[0]["run_id"] != traces[1]["run_id"]
 
-    varying_fields = {"run_id", "started_at", "total_latency_s"}
-    stable_parts = [
-        {key: value for key, value in trace.items() if key not in varying_fields}
-        for trace in traces
-    ]
-    assert stable_parts[0] == stable_parts[1]
+    def stable_part(trace):
+        varying_fields = {"run_id", "started_at", "total_latency_s"}
+        stable = {k: v for k, v in trace.items() if k not in varying_fields}
+        stable["stages"] = {
+            name: {k: v for k, v in record.items() if k != "latency_s"}
+            for name, record in trace["stages"].items()
+        }
+        return stable
+
+    assert stable_part(traces[0]) == stable_part(traces[1])
+
+
+def test_every_stage_that_ran_records_latency(
+    dataset_with_case_87,
+    search_call_strict_hits,
+    fetch_call_valid_xml,
+):
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SUMMARY]),
+        search_call=search_call_strict_hits,
+        fetch_call=fetch_call_valid_xml,
+        run_metadata=RUN_METADATA,
+    )
+
+    for record in trace["stages"].values():
+        assert record["latency_s"] >= 0
+
+
+def test_skipped_stages_record_no_latency(
+    empty_dataset,
+    model_call_should_not_be_called,
+    search_call_should_not_be_called,
+    fetch_call_should_not_be_called,
+):
+    trace = run_pipeline(
+        case_id=999,
+        dataset=empty_dataset,
+        model_call=model_call_should_not_be_called,
+        search_call=search_call_should_not_be_called,
+        fetch_call=fetch_call_should_not_be_called,
+        run_metadata=RUN_METADATA,
+    )
+
+    assert trace["stages"]["load_case"]["latency_s"] >= 0
+    for name, record in trace["stages"].items():
+        if name != "load_case":
+            assert "latency_s" not in record
+
+
+def test_raising_fetch_call_is_recorded(
+    dataset_with_case_87,
+    valid_pico_llm_call,
+    search_call_seven_hits,
+    fetch_call_raises_connection_error,
+):
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=valid_pico_llm_call,
+        search_call=search_call_seven_hits,
+        fetch_call=fetch_call_raises_connection_error,
+        run_metadata=RUN_METADATA,
+    )
+
+    call_records = trace["stages"]["fetch"]["call_records"]
+    assert len(call_records) == 1
+    assert call_records[0]["pmids"] == SEVEN_PMIDS[:5]
+    assert call_records[0]["error"] == "ConnectionError: NCBI unreachable"
+
+
+def test_raising_model_call_is_recorded(
+    dataset_with_case_87,
+    search_call_should_not_be_called,
+    fetch_call_should_not_be_called,
+):
+    def model_call_times_out(prompt):
+        raise TimeoutError("Ollama did not respond")
+
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=model_call_times_out,
+        search_call=search_call_should_not_be_called,
+        fetch_call=fetch_call_should_not_be_called,
+        run_metadata=RUN_METADATA,
+    )
+
+    pico_record = trace["stages"]["generate_pico_candidates"]
+    assert pico_record["status"] == "failed"
+    assert pico_record["failure_tag"] == "unexpected"
+    assert "synthetic case note" in pico_record["call_records"][0]["prompt"]
+    assert pico_record["call_records"][0]["error"] == "TimeoutError: Ollama did not respond"
+
+
+def test_missing_ncbi_settings_tagged_configuration(
+    dataset_with_case_87,
+    valid_pico_llm_call,
+    fetch_call_should_not_be_called,
+):
+    def search_call_missing_settings(query):
+        raise ConfigurationError("NCBI_TOOL_NAME and NCBI_EMAIL must be set.")
+
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=valid_pico_llm_call,
+        search_call=search_call_missing_settings,
+        fetch_call=fetch_call_should_not_be_called,
+        run_metadata=RUN_METADATA,
+    )
+
+    search_record = trace["stages"]["search"]
+    assert search_record["status"] == "failed"
+    assert search_record["failure_tag"] == "configuration"
+    assert search_record["failure_type"] == "ConfigurationError"
 
 
 def test_pico_validation_failure_on_missing_outcome_key(
@@ -701,6 +814,7 @@ def test_pico_validation_failure_on_missing_outcome_key(
     pico_record = trace["stages"]["generate_pico_candidates"]
     assert pico_record["status"] == "failed"
     assert pico_record["failure_tag"] == "validation"
+    assert '"comparison": "penicillin"}' in pico_record["call_records"][0]["response"]
 
     for stage_name in [
         "select_pico",

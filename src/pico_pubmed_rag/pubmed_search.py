@@ -6,6 +6,10 @@ import xml.etree.ElementTree as ET
 import requests
 
 
+class ConfigurationError(ValueError):
+    """Raised when required NCBI settings are missing from the environment."""
+
+
 def build_search_query(pico):
     return f"""{pico["population"]} AND {pico["intervention"]} AND (Randomized Controlled Trial[pt] OR Systematic Review[pt])"""
 
@@ -56,7 +60,7 @@ def esearch_get(query):
     tool = os.environ.get("NCBI_TOOL_NAME")
     email = os.environ.get("NCBI_EMAIL")
     if not tool or not email:
-        raise ValueError(
+        raise ConfigurationError(
             "NCBI_TOOL_NAME and NCBI_EMAIL must be set. Copy .env.example to .env and fill it in."
         )
 
@@ -80,7 +84,7 @@ def efetch_get(pmids):
     tool = os.environ.get("NCBI_TOOL_NAME")
     email = os.environ.get("NCBI_EMAIL")
     if not tool or not email:
-        raise ValueError(
+        raise ConfigurationError(
             "NCBI_TOOL_NAME and NCBI_EMAIL must be set. Copy .env.example to .env and fill it in."
         )
 
