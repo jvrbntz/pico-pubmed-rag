@@ -5,7 +5,10 @@ import traceback
 from pico_pubmed_rag.case_loading import load_case
 from pico_pubmed_rag.pico_generation import generate_pico_candidates
 from pico_pubmed_rag.pico_selection import select_pico
-from pico_pubmed_rag.pubmed_search import build_search_query
+from pico_pubmed_rag.pubmed_search import (
+    build_search_query,
+    search_pubmed_with_broadening,
+)
 
 STAGE_NAMES = [
     "load_case",
@@ -55,6 +58,24 @@ def run_pipeline(case_id, dataset, model_call, search_call, fetch_call, run_meta
         stages["build_search_query"] = {"status": "succeeded", "output": query}
     except Exception as exc:
         stages["build_search_query"] = _failure_record(exc)
+        return {"run_outcome": "failed", "stages": stages}
+
+    search_call_records = []
+
+    def recording_search_call(query):
+        response = search_call(query)
+        search_call_records.append({"query": query, "response": response})
+        return response
+
+    try:
+        pmids = search_pubmed_with_broadening(query, recording_search_call)
+        stages["search"] = {
+            "status": "succeeded",
+            "output": pmids,
+            "call_records": search_call_records,
+        }
+    except Exception as exc:
+        stages["search"] = _failure_record(exc)
         return {"run_outcome": "failed", "stages": stages}
 
     # Remaining stages not implemented yet; each stage's skip stays in place
