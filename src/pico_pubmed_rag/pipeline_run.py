@@ -7,8 +7,12 @@ from pico_pubmed_rag.pico_generation import generate_pico_candidates
 from pico_pubmed_rag.pico_selection import select_pico
 from pico_pubmed_rag.pubmed_search import (
     build_search_query,
+    fetch_abstracts,
+    parse_pubmed_xml,
     search_pubmed_with_broadening,
 )
+
+FETCH_SIZE = 5
 
 STAGE_NAMES = [
     "load_case",
@@ -75,7 +79,43 @@ def run_pipeline(case_id, dataset, model_call, search_call, fetch_call, run_meta
             "call_records": search_call_records,
         }
     except Exception as exc:
-        stages["search"] = _failure_record(exc)
+        stages["search"] = {
+            **_failure_record(exc),
+            "call_records": search_call_records,
+        }
+        return {"run_outcome": "failed", "stages": stages}
+
+    if not pmids:
+        for name in ["fetch", "parse", "rank", "generate_summary"]:
+            stages[name] = {"status": "skipped", "skip_reason": "no_evidence"}
+        return {"run_outcome": "no_evidence", "stages": stages}
+
+    fetch_call_records = []
+
+    def recording_fetch_call(pmids):
+        response = fetch_call(pmids)
+        fetch_call_records.append({"pmids": pmids, "response": response})
+        return response
+
+    try:
+        xml_text = fetch_abstracts(pmids[:FETCH_SIZE], recording_fetch_call)
+        stages["fetch"] = {
+            "status": "succeeded",
+            "output": xml_text,
+            "call_records": fetch_call_records,
+        }
+    except Exception as exc:
+        stages["fetch"] = {
+            **_failure_record(exc),
+            "call_records": fetch_call_records,
+        }
+        return {"run_outcome": "failed", "stages": stages}
+
+    try:
+        abstracts = parse_pubmed_xml(xml_text)
+        stages["parse"] = {"status": "succeeded", "output": abstracts}
+    except Exception as exc:
+        stages["parse"] = _failure_record(exc)
         return {"run_outcome": "failed", "stages": stages}
 
     # Remaining stages not implemented yet; each stage's skip stays in place

@@ -91,11 +91,104 @@ def search_call_strict_empty_broadened_hits():
 
 
 @pytest.fixture
+def search_call_always_empty():
+    def _search_call(query):
+        return {"esearchresult": {"idlist": []}}
+
+    return _search_call
+
+
+@pytest.fixture
+def search_call_malformed_response():
+    def _search_call(query):
+        return {}
+
+    return _search_call
+
+
+@pytest.fixture
 def search_call_strict_hits():
     def _search_call(query):
         return {"esearchresult": {"idlist": ["1234567", "2345678", "3456789"]}}
 
     return _search_call
+
+
+@pytest.fixture
+def fetch_call_raises_connection_error():
+    def _fetch_call(pmids):
+        raise ConnectionError("NCBI unreachable")
+
+    return _fetch_call
+
+
+XML_MISSING_ABSTRACT = """<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation>
+      <PMID>1234567</PMID>
+      <Article>
+        <ArticleTitle>Metformin versus sulfonylurea in type 2 diabetes</ArticleTitle>
+        <PublicationTypeList>
+          <PublicationType>Randomized Controlled Trial</PublicationType>
+        </PublicationTypeList>
+        <Journal>
+          <JournalIssue>
+            <PubDate><Year>2020</Year></PubDate>
+          </JournalIssue>
+        </Journal>
+      </Article>
+    </MedlineCitation>
+  </PubmedArticle>
+</PubmedArticleSet>"""
+
+
+VALID_XML = """<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation>
+      <PMID>1234567</PMID>
+      <Article>
+        <ArticleTitle>Metformin versus sulfonylurea in type 2 diabetes</ArticleTitle>
+        <Abstract>
+          <AbstractText>A randomized trial comparing HbA1c reduction between metformin and sulfonylurea.</AbstractText>
+        </Abstract>
+        <PublicationTypeList>
+          <PublicationType>Randomized Controlled Trial</PublicationType>
+        </PublicationTypeList>
+        <Journal>
+          <JournalIssue>
+            <PubDate><Year>2020</Year></PubDate>
+          </JournalIssue>
+        </Journal>
+      </Article>
+    </MedlineCitation>
+  </PubmedArticle>
+</PubmedArticleSet>"""
+
+SEVEN_PMIDS = ["1111111", "2222222", "3333333", "4444444", "5555555", "6666666", "7777777"]
+
+
+@pytest.fixture
+def search_call_seven_hits():
+    def _search_call(query):
+        return {"esearchresult": {"idlist": SEVEN_PMIDS}}
+
+    return _search_call
+
+
+@pytest.fixture
+def fetch_call_valid_xml():
+    def _fetch_call(pmids):
+        return VALID_XML
+
+    return _fetch_call
+
+
+@pytest.fixture
+def fetch_call_missing_abstract():
+    def _fetch_call(pmids):
+        return XML_MISSING_ABSTRACT
+
+    return _fetch_call
 
 
 def test_unknown_case_id_fails_without_raising(
@@ -220,6 +313,137 @@ def test_search_records_one_query_when_strict_hits(
     call_records = search_record["call_records"]
     assert len(call_records) == 1
     assert "Randomized Controlled Trial[pt]" in call_records[0]["query"]
+
+
+def test_no_evidence_when_both_searches_return_nothing(
+    dataset_with_case_87,
+    valid_pico_llm_call,
+    search_call_always_empty,
+    fetch_call_should_not_be_called,
+):
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=valid_pico_llm_call,
+        search_call=search_call_always_empty,
+        fetch_call=fetch_call_should_not_be_called,
+        run_metadata=RUN_METADATA,
+    )
+
+    assert trace["run_outcome"] == "no_evidence"
+
+    search_record = trace["stages"]["search"]
+    assert search_record["status"] == "succeeded"
+    assert len(search_record["call_records"]) == 2
+
+    for stage_name in ["fetch", "parse", "rank", "generate_summary"]:
+        assert trace["stages"][stage_name]["status"] == "skipped"
+        assert trace["stages"][stage_name]["skip_reason"] == "no_evidence"
+
+    assert all(record["status"] != "failed" for record in trace["stages"].values())
+
+
+def test_malformed_search_response_fails_and_keeps_raw_response(
+    dataset_with_case_87,
+    valid_pico_llm_call,
+    search_call_malformed_response,
+    fetch_call_should_not_be_called,
+):
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=valid_pico_llm_call,
+        search_call=search_call_malformed_response,
+        fetch_call=fetch_call_should_not_be_called,
+        run_metadata=RUN_METADATA,
+    )
+
+    assert trace["run_outcome"] == "failed"
+
+    search_record = trace["stages"]["search"]
+    assert search_record["status"] == "failed"
+    assert search_record["failure_tag"] == "validation"
+    assert search_record["call_records"][0]["response"] == {}
+
+
+def test_fetch_connection_error_fails_without_raising(
+    dataset_with_case_87,
+    valid_pico_llm_call,
+    search_call_strict_hits,
+    fetch_call_raises_connection_error,
+):
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=valid_pico_llm_call,
+        search_call=search_call_strict_hits,
+        fetch_call=fetch_call_raises_connection_error,
+        run_metadata=RUN_METADATA,
+    )
+
+    assert trace["run_outcome"] == "failed"
+
+    fetch_record = trace["stages"]["fetch"]
+    assert fetch_record["status"] == "failed"
+    assert fetch_record["failure_tag"] == "unexpected"
+    assert fetch_record["failure_type"] == "ConnectionError"
+
+    for stage_name in ["parse", "rank", "generate_summary"]:
+        assert trace["stages"][stage_name]["status"] == "skipped"
+
+
+def test_parse_failure_keeps_raw_xml_from_fetch(
+    dataset_with_case_87,
+    valid_pico_llm_call,
+    search_call_strict_hits,
+    fetch_call_missing_abstract,
+):
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=valid_pico_llm_call,
+        search_call=search_call_strict_hits,
+        fetch_call=fetch_call_missing_abstract,
+        run_metadata=RUN_METADATA,
+    )
+
+    assert trace["run_outcome"] == "failed"
+
+    fetch_record = trace["stages"]["fetch"]
+    assert fetch_record["status"] == "succeeded"
+    assert fetch_record["call_records"][0]["response"] == XML_MISSING_ABSTRACT
+
+    parse_record = trace["stages"]["parse"]
+    assert parse_record["status"] == "failed"
+    assert parse_record["failure_tag"] == "unexpected"
+    assert parse_record["failure_type"] == "AttributeError"
+
+    for stage_name in ["rank", "generate_summary"]:
+        assert trace["stages"][stage_name]["status"] == "skipped"
+
+
+def test_fetch_records_pmids_sent_and_raw_xml(
+    dataset_with_case_87,
+    valid_pico_llm_call,
+    search_call_seven_hits,
+    fetch_call_valid_xml,
+):
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=valid_pico_llm_call,
+        search_call=search_call_seven_hits,
+        fetch_call=fetch_call_valid_xml,
+        run_metadata=RUN_METADATA,
+    )
+
+    fetch_record = trace["stages"]["fetch"]
+    assert fetch_record["status"] == "succeeded"
+
+    call_records = fetch_record["call_records"]
+    assert len(call_records) == 1
+    assert call_records[0]["pmids"] == SEVEN_PMIDS[:5]
+    assert call_records[0]["response"] == VALID_XML
 
 
 def test_pico_validation_failure_on_missing_outcome_key(
