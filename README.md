@@ -52,7 +52,7 @@ Latency, case-in to summary-out, is logged per run but not scored against a thre
 | 1 | Repo scaffolding + case ingestion + PICO-candidate generation | done |
 | 2 | PubMed search translation, retrieval, and parsing (MeSH mapping, Boolean structure, zero-result broadening, esearch/efetch, abstract parsing) | done |
 | 3 | Ranking + evidence-summary generation (walking skeleton complete once this lands) | done |
-| 4 | Eval harness (gold set, PICO-extraction / retrieval-relevance / faithfulness scoring, latency logging) | not started |
+| 4 | Eval harness (gold set, PICO-extraction / retrieval-relevance / faithfulness scoring, latency logging) | in progress |
 
 Acceptance criteria per phase are written before that phase's code, and enforced as tests. See `CLAUDE.md`'s Build workflow section.
 
@@ -73,6 +73,10 @@ uv run python scripts/download_data.py
 The last step downloads MTSamples via kagglehub and copies it into `data/` (gitignored). Requires Kaggle API credentials configured on your machine.
 
 Requires Python 3.11+; `uv` will provision it if your system interpreter is older.
+
+## Running it
+
+`uv run python scripts/try_full_pipeline.py` runs one MTSamples case through the full pipeline against the local model and live PubMed, and prints its trace: each stage's status, service, and latency, the search queries sent, and the summary. `uv run pytest` runs the test suite, which uses fakes and needs neither Ollama nor network access.
 
 ## Known limitations
 
@@ -101,6 +105,7 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 - `publication_type` captures every `PublicationType` value per article as a list, not just the first. A live query on 2026-09-15 showed why: every result came back as "Journal Article" only, even though the search filtered for RCT/systematic review, since the first parsing pass grabbed the generic type instead of the one that actually matched.
 - Zero-result broadening is a separate function from `search_pubmed`, not a change to it. Modifying `search_pubmed` directly to retry internally would have broken its own already-tested guarantee that it returns `[]` on zero results with no retry.
 - Summary generation skips the embedding/in-memory-index step for now, working directly off ranked abstracts. Ranking already selects by evidence tier and recency, and with only ~10 fetched abstracts, embeddings aren't proven necessary yet. Still planned via nomic-embed-text, once the simpler version runs end to end.
+- Each pipeline run returns a trace instead of raising on failure. `run_pipeline` records every stage's status, output, and latency, plus every model and NCBI call it made, including retried attempts and broadened searches. A stage failure ends the run with a recorded reason, so a batch of cases keeps going and failures can be counted.
 
 ## Docs
 
