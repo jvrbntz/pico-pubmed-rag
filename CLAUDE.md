@@ -18,7 +18,7 @@ A clinical evidence-support tool: clinical case → candidate PICO queries → u
 ## Hard constraints
 
 - No PHI, ever. Data is public/synthetic only (MTSamples). Non-PHI-shaped field names (`case_id`, not `patient_id`).
-- No persistent storage of retrieved literature or embeddings across sessions: retrieval index is ephemeral, rebuilt per session, discarded after.
+- No persistent retrieval index: embeddings and any search index over retrieved literature are ephemeral, rebuilt per session, discarded after. Run traces, which include the abstracts a run retrieved, are saved to a gitignored `runs/` folder as a record of what each run saw, never read back as an index.
 - Output must explicitly self-label as an evidence summary, not a diagnostic or treatment recommendation; this is stated in the output itself, not just the README.
 - No naive keyword-concatenation search: PubMed queries go through MeSH mapping + Boolean structure + publication-type filters.
 - Scope-first workflow: acceptance criteria are written before implementation. `README.md`'s scope sections define what a phase covers and aren't rewritten to match the code after the fact. If the code diverges from what's written there, that's a decision recorded in the commit message, not a reason to silently edit the README's scope.

@@ -106,6 +106,7 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 - Zero-result broadening is a separate function from `search_pubmed`, not a change to it. Modifying `search_pubmed` directly to retry internally would have broken its own already-tested guarantee that it returns `[]` on zero results with no retry.
 - Summary generation skips the embedding/in-memory-index step for now, working directly off ranked abstracts. Ranking already selects by evidence tier and recency, and with only ~10 fetched abstracts, embeddings aren't proven necessary yet. Still planned via nomic-embed-text, once the simpler version runs end to end.
 - Each pipeline run returns a trace instead of raising on failure. `run_pipeline` records every stage's status, output, and latency, plus every model and NCBI call it made, including retried attempts and broadened searches. A stage failure ends the run with a recorded reason, so a batch of cases keeps going and failures can be counted.
+- Run traces are saved to disk, including the case text and the abstracts each run retrieved. They are a record of what a run saw, used for evaluation, not a store the pipeline reads from: every run still searches PubMed live. They live in a gitignored `runs/` folder.
 
 ## Docs
 
