@@ -17,6 +17,7 @@ Computed from run traces. No hand labels needed, only a fixed sample of cases. T
 | Summary first-attempt pass rate | Summaries that pass validation without a retry | Calls where the first response passes, over all summary calls |
 | No Clear Answer rate | Summaries where the model declines to answer | Summaries labeled "No Clear Answer:", over all summaries |
 | Zero-result rate | Searches that find nothing | Runs where the strict query returns zero PMIDs, and separately, runs where the broadened query also returns zero |
+| Citation validity | Summaries citing PMIDs that were never fetched | Cited PMIDs found among the run's fetched PMIDs, over all cited PMIDs |
 
 ## Quality metrics
 
