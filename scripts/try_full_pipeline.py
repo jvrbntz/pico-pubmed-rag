@@ -1,4 +1,4 @@
-"""One-time manual check: runs one real MTSamples case through run_pipeline, against the real model and real PubMed, and prints a compact view of the trace."""
+"""One-time manual check: runs one real MTSamples case through run_pipeline, against the real model and real PubMed, prints a compact view of the trace, and saves it to runs/smoke_runs.jsonl."""
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -7,8 +7,10 @@ from pico_pubmed_rag.data_cleaning import clean_dataset
 from pico_pubmed_rag.llm_client import call_llm
 from pico_pubmed_rag.pipeline_run import run_pipeline
 from pico_pubmed_rag.pubmed_search import efetch_get, esearch_get
+from pico_pubmed_rag.trace_file import write_trace
 
-CASE_ID = 87
+CASE_ID = 34
+TRACE_FILE = "runs/smoke_runs.jsonl"
 
 if __name__ == "__main__":
     load_dotenv()
@@ -49,4 +51,5 @@ if __name__ == "__main__":
     elif summary_record["status"] == "failed":
         print(f"\n--- Summary failed ---\n{summary_record['traceback']}")
 
-    print(f"\ncase_id type in trace output: {type(trace['stages']['load_case']['output']['case_id'])}")
+    write_trace(trace, TRACE_FILE)
+    print(f"\nTrace saved to {TRACE_FILE}")

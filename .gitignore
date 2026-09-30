@@ -23,6 +23,9 @@ ipython_config.py
 # Data
 data/
 
+# Run traces (contain full case text and retrieved abstracts)
+runs/
+
 # uv
 uv.lock.bak
 
