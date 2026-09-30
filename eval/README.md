@@ -8,7 +8,7 @@ Nothing has been measured yet. There's no gold set and no eval has been run, so 
 
 ## Operational metrics
 
-Computed from run traces. No hand labels needed, only a fixed sample of cases. Traces record each call, but aren't saved to disk yet, so none of them can be counted today.
+Computed from run traces. No hand labels needed, only a fixed sample of cases. Traces are saved to `runs/`, but there's no batch runner or metrics script yet, so none of them are counted today.
 
 | Metric | Measures | How counted |
 |---|---|---|
