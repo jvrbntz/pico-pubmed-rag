@@ -10,8 +10,11 @@ class ConfigurationError(ValueError):
     """Raised when required NCBI settings are missing from the environment."""
 
 
+PUBLICATION_TYPE_FILTER = " AND (Randomized Controlled Trial[pt] OR Systematic Review[pt])"
+
+
 def build_search_query(pico):
-    return f"""{pico["population"]} AND {pico["intervention"]} AND (Randomized Controlled Trial[pt] OR Systematic Review[pt])"""
+    return f"""{pico["population"]} AND {pico["intervention"]}{PUBLICATION_TYPE_FILTER}"""
 
 
 def search_pubmed(query, http_get):
@@ -25,9 +28,7 @@ def search_pubmed(query, http_get):
 def search_pubmed_with_broadening(query, http_get):
     results = search_pubmed(query, http_get)
     if not results:
-        broadened_query = query.replace(
-            " AND (Randomized Controlled Trial[pt] OR Systematic Review[pt])", ""
-        )
+        broadened_query = query.replace(PUBLICATION_TYPE_FILTER, "")
         results = search_pubmed(broadened_query, http_get)
     return results
 
