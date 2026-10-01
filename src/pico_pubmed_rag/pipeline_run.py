@@ -38,6 +38,35 @@ STAGE_NAMES = list(SERVICE_TAGS)
 
 
 def run_pipeline(case_id, dataset, model_call, search_call, fetch_call, run_metadata):
+    """Runs one case through all nine stages and returns its trace (schema version 1).
+
+    Trace fields:
+        run_id: unique hex ID for this run.
+        case_id: the case that was run.
+        started_at: UTC start time, ISO 8601.
+        total_latency_s: wall-clock seconds for the whole run.
+        schema_version: 1.
+        run_metadata: the caller's dict, unchanged (the batch runner adds batch_id and repeat).
+        run_outcome: "completed", "no_evidence", or "failed".
+        stages: one stage record per stage, in pipeline order, keyed by stage name.
+
+    Stage record fields:
+        status: "succeeded", "failed", or "skipped".
+        service: "local" (Ollama), "external" (NCBI), or "none".
+        output: the stage's return value (succeeded only).
+        latency_s: seconds the stage took (succeeded or failed only).
+        failure_tag, failure_type, traceback: why it failed (failed only); failure_tag
+            is "validation", "configuration", or "unexpected".
+        skip_reason: "not reached", or "no_evidence" when search found nothing (skipped only).
+        call_records: every model or NCBI call the stage made, in order (generate_pico_candidates,
+            search, fetch, generate_summary only).
+
+    Call record fields:
+        prompt, query, or pmids: what was sent.
+        response: what came back, or error: "ExceptionType: message" if the call raised.
+
+    Stage failures never raise; they end the run with run_outcome "failed".
+    """
     started_at = datetime.now(timezone.utc).isoformat()
     start_time = time.perf_counter()
     stages = {
