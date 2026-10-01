@@ -31,6 +31,7 @@ def review_row(trace):
         "repeat": trace["run_metadata"].get("repeat"),
         "run_id": trace["run_id"],
         "specialty": str(case.get("medical_specialty", "")).strip(),
+        "sample_name": str(case.get("sample_name", "")).strip(),
         "description": str(case.get("description", "")).strip(),
         "population": pico.get("population"),
         "intervention": pico.get("intervention"),
@@ -39,6 +40,7 @@ def review_row(trace):
         "strict_query": queries[0] if queries else "",
         "broadened_query": queries[1] if len(queries) > 1 else "",
         **{column: "" for column in REVIEW_COLUMNS},
+        "transcription": str(case.get("transcription", "")).strip(),
     }
 
 
