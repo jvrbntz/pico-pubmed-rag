@@ -362,3 +362,12 @@ def test_build_prompt_allows_null_comparison():
 
     assert "If the note states no alternative, use null" in result
     assert "Do not invent one" in result
+
+
+@pytest.mark.parametrize("null_text", ["null", " NULL "])
+def test_generate_pico_candidates_treats_null_string_comparison_as_none(null_text):
+    response = json.dumps([{**PACEMAKER_CANDIDATE, "comparison": null_text}])
+
+    result = generate_pico_candidates("case text", lambda prompt: response)
+
+    assert result[0]["comparison"] is None

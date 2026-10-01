@@ -60,6 +60,10 @@ def generate_pico_candidates(case_text, llm_call):
                 f"PICO candidate has unexpected keys: {sorted(candidate.keys())}"
             )
 
+        comparison = candidate["comparison"]
+        if isinstance(comparison, str) and comparison.strip().lower() == "null":
+            candidate["comparison"] = None
+
         if not all(candidate[key] for key in ("population", "intervention", "outcome")):
             raise ValueError(
                 f"PICO candidate has a missing or empty value: {candidate}"
