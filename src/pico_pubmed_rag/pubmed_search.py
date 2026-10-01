@@ -1,4 +1,4 @@
-"""Translates a selected PICO into a PubMed search query string."""
+"""Builds a PubMed query from a selected PICO, searches and fetches through NCBI E-utilities with zero-result broadening, and parses fetched records into abstracts."""
 
 import os
 import xml.etree.ElementTree as ET
