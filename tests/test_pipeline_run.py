@@ -6,6 +6,12 @@ import pytest
 from pico_pubmed_rag.pipeline_run import run_pipeline
 from pico_pubmed_rag.pubmed_search import ConfigurationError
 from pico_pubmed_rag.summary_generation import generate_summary
+from tests.pipeline_fakes import (
+    VALID_PICO_RESPONSE,
+    VALID_SUMMARY,
+    VALID_XML,
+    scripted_model_call,
+)
 
 RUN_METADATA = {"git_commit": "abc123"}
 
@@ -80,13 +86,6 @@ def valid_pico_llm_call():
     return _model_call
 
 
-VALID_PICO_RESPONSE = (
-    '[{"population": "adults with type 2 diabetes", "intervention": "metformin", '
-    '"comparison": "sulfonylurea", "outcome": "HbA1c reduction"}, '
-    '{"population": "adults with type 2 diabetes", "intervention": "lifestyle modification", '
-    '"comparison": "metformin", "outcome": "weight loss"}]'
-)
-
 NO_CLEAR_ANSWER_SUMMARY = (
     "No Clear Answer: None of the retrieved abstracts compare metformin "
     "with sulfonylurea for this population."
@@ -97,21 +96,6 @@ UNCITED_SUMMARY = (
     "Evidence Summary: Metformin lowered HbA1c more than sulfonylurea. "
     "This is not a diagnosis or treatment recommendation."
 )
-
-VALID_SUMMARY = (
-    "Evidence Summary: Metformin lowered HbA1c more than sulfonylurea "
-    "(PMID: 1234567). This is not a diagnosis or treatment recommendation."
-)
-
-
-def scripted_model_call(responses):
-    remaining = list(responses)
-
-    def _model_call(prompt):
-        return remaining.pop(0)
-
-    return _model_call
-
 
 @pytest.fixture
 def search_call_strict_empty_broadened_hits():
@@ -137,14 +121,6 @@ def search_call_always_empty():
 def search_call_malformed_response():
     def _search_call(query):
         return {}
-
-    return _search_call
-
-
-@pytest.fixture
-def search_call_strict_hits():
-    def _search_call(query):
-        return {"esearchresult": {"idlist": ["1234567", "2345678", "3456789"]}}
 
     return _search_call
 
@@ -177,28 +153,6 @@ XML_MISSING_ABSTRACT = """<PubmedArticleSet>
 </PubmedArticleSet>"""
 
 
-VALID_XML = """<PubmedArticleSet>
-  <PubmedArticle>
-    <MedlineCitation>
-      <PMID>1234567</PMID>
-      <Article>
-        <ArticleTitle>Metformin versus sulfonylurea in type 2 diabetes</ArticleTitle>
-        <Abstract>
-          <AbstractText>A randomized trial comparing HbA1c reduction between metformin and sulfonylurea.</AbstractText>
-        </Abstract>
-        <PublicationTypeList>
-          <PublicationType>Randomized Controlled Trial</PublicationType>
-        </PublicationTypeList>
-        <Journal>
-          <JournalIssue>
-            <PubDate><Year>2020</Year></PubDate>
-          </JournalIssue>
-        </Journal>
-      </Article>
-    </MedlineCitation>
-  </PubmedArticle>
-</PubmedArticleSet>"""
-
 SEVEN_PMIDS = ["1111111", "2222222", "3333333", "4444444", "5555555", "6666666", "7777777"]
 
 
@@ -208,14 +162,6 @@ def search_call_seven_hits():
         return {"esearchresult": {"idlist": SEVEN_PMIDS}}
 
     return _search_call
-
-
-@pytest.fixture
-def fetch_call_valid_xml():
-    def _fetch_call(pmids):
-        return VALID_XML
-
-    return _fetch_call
 
 
 @pytest.fixture
