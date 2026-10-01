@@ -42,3 +42,12 @@ def scripted_model_call(responses):
         return remaining.pop(0)
 
     return _model_call
+
+
+def routing_model_call(pico_response=VALID_PICO_RESPONSE, summary_response=VALID_SUMMARY):
+    def _model_call(prompt):
+        if "Now extract PICO candidates" in prompt:
+            return pico_response
+        return summary_response
+
+    return _model_call
