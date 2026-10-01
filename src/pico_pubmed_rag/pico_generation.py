@@ -7,9 +7,16 @@ def build_prompt(case_text):
     return f"""
     You are a helpful clinical AI assistant and an expert in extracting the most important PICO elements from a case note. 
 
-    Given a clinical case note, extract 2 to 4 distinct PICO (Population, Intervention, Comparison, Outcome) candidates. \
+    Given a clinical case note, extract 1 to 4 distinct PICO (Population, Intervention, Comparison, Outcome) candidates. \
+    Return only as many as the note supports: a note describing a single procedure or decision usually supports one. \
+    Candidates are distinct when they differ in population, intervention, or comparison.
     Each candidate must be a JSON object with exactly these four keys: "population", "intervention", "comparison", "outcome".
     Return a JSON list of these objects, and nothing else.
+
+    Write each candidate as a clinical question that can be searched in the medical literature, not as a description of this patient:
+    - Population: the condition and the clinical characteristics that define who the question applies to, for example "women with symptomatic uterine fibroids". Leave out the exact age, laterality (left or right), obstetric history, and other details specific to this patient unless they change which treatment applies. Do not make the population so broad that it includes people outside that group.
+    - Intervention and comparison: name the treatment or procedure generically, without brand names, device names, or doses.
+    - Comparison: the alternative being weighed. If the note states no alternative, use null. Do not invent one.
 
     Here's an example: "45 year-old man presents with sore throat, fever, and tonsillar exudate. Rapid strep test is positive."
 

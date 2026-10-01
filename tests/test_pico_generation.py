@@ -341,3 +341,24 @@ def test_generate_pico_candidates_raises_on_empty_population():
 
     with pytest.raises(ValueError):
         generate_pico_candidates("case text", lambda prompt: response)
+
+
+def test_build_prompt_asks_for_one_to_four_candidates():
+    result = build_prompt("case text")
+
+    assert "1 to 4" in result
+    assert "2 to 4" not in result
+
+
+def test_build_prompt_asks_for_searchable_population_without_patient_details():
+    result = build_prompt("case text")
+
+    for phrase in ["laterality", "brand names", "not as a description of this patient"]:
+        assert phrase in result
+
+
+def test_build_prompt_allows_null_comparison():
+    result = build_prompt("case text")
+
+    assert "If the note states no alternative, use null" in result
+    assert "Do not invent one" in result
