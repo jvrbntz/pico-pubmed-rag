@@ -76,7 +76,7 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 
 ## Running it
 
-`uv run python scripts/try_full_pipeline.py` runs one MTSamples case through the full pipeline against the local model and live PubMed, prints its trace (each stage's status, service, and latency, the search queries sent, and the summary), and appends it to `runs/smoke_runs.jsonl`. `uv run pytest` runs the test suite, which uses fakes and needs neither Ollama nor network access.
+`uv run python scripts/try_full_pipeline.py` runs one MTSamples case through the full pipeline against the local model and live PubMed, prints its trace (each stage's status, service, and latency, the search queries sent, and the summary), and appends it to `runs/smoke_runs.jsonl`. `uv run python scripts/run_batch.py --size 20 --seed 42` runs a seeded sample of cases and saves every trace to a timestamped file in `runs/`, logging progress as it goes. `scripts/export_review_sheet.py` turns a batch file's runs into a CSV sheet for error analysis. `uv run pytest` runs the test suite, which uses fakes and needs neither Ollama nor network access.
 
 ## Known limitations
 

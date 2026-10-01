@@ -4,11 +4,11 @@ This directory records how this project is evaluated: the procedure, the gold se
 
 ## Status
 
-Nothing has been measured yet. There's no gold set and no eval has been run, so nothing in this repo says how good the PICO extraction, retrieval, or summaries actually are.
+Operational metrics have been counted by hand on a 20-case development batch (seed 42), used for error analysis and tuning, not as a test set. There's no gold set yet, so nothing in this repo says how good the PICO extraction, retrieval, or summaries actually are.
 
 ## Operational metrics
 
-Computed from run traces. No hand labels needed, only a fixed sample of cases. Traces are saved to `runs/`, but there's no batch runner or metrics script yet, so none of them are counted today.
+Computed from run traces. No hand labels needed, only a fixed sample of cases. Batches run with `scripts/run_batch.py` and save traces to `runs/`. There's no metrics script yet, so counts so far are computed by hand.
 
 | Metric | Measures | How counted |
 |---|---|---|
@@ -37,7 +37,7 @@ Not created yet. Two files will live in this directory.
 
 `relevance.jsonl` has one record per case and PMID pair: `case_id`, `pmid`, `relevant` (yes or no), and the date judged.
 
-Cases are a seeded random sample of 15-20 from the cleaned dataset, with the seed recorded here once chosen. Weak notes, such as diagnostic reports with no treatment decision, are kept and flagged `no_answerable_pico`, not excluded.
+Cases are a seeded random sample of 15-20 from the cleaned dataset, drawn with a different seed from the development batch and excluding its 20 cases, with the seed recorded here once chosen. Weak notes, such as diagnostic reports with no treatment decision, are kept and flagged `no_answerable_pico`, not excluded.
 
 The gold PICO is the main clinical decision in the note's plan, in plain phrasing. Cases are annotated before looking at any system output. If a note has more than one defensible decision point, the primary one is recorded. An abstract is relevant if it studies the case PICO's population and intervention and reports the comparison or the outcome.
 
