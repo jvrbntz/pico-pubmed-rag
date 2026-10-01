@@ -13,7 +13,7 @@ The MVP carries one MTSamples case through the full pipeline once: PICO generati
 ## How it works (v1 scope)
 
 1. Ingest one clinical case (free text) from MTSamples.
-2. Generate 2-4 distinct PICO candidates as structured P/I/C/O records, comparable to the gold set. Distinct means differing on Population or Intervention, not just phrasing. Each candidate must trace to the case text.
+2. Generate 1-4 distinct PICO candidates as structured P/I/C/O records, comparable to the gold set. Distinct means differing on Population, Intervention, or Comparison, not just phrasing. Comparison may be empty when the note states none. Each candidate must trace to the case text.
 3. Select one PICO. A human picks in interactive mode. In batch/eval mode, and in the MVP, the top-ranked candidate (position 1) is selected by documented policy.
 4. Translate the selected PICO into a PubMed search: MeSH mapping, Boolean structure, publication-type filters. A query returning few or no results broadens automatically, dropping a filter, widening a MeSH term, or dropping a less-essential PICO element.
 5. Query PubMed via NCBI E-utilities (esearch, efetch). Each abstract carries PMID, title, text, publication type, and publication date.
@@ -84,7 +84,7 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 - The `medical_specialty` field mixes actual clinical specialties (Surgery, Cardiovascular / Pulmonary) with document types (Discharge Summary, SOAP / Chart / Progress Notes, Letters). Anything that filters or samples by specialty needs to account for this, not treat every value as a real specialty.
 - PICO extraction can misframe a clear case (wrong population, intervention, or outcome). This shows up repeatedly on diagnostic-report notes like echocardiograms and imaging follow-ups, where a diagnostic or monitoring action gets labeled as the intervention instead of an actual treatment choice. The failure is silent and propagates through search, ranking, and summary, producing a fluent, well-cited, wrong result.
 - PICO candidates can be entirely unrelated to the case, not just misframed. Observed once on 2026-09-16: a candidate for "adults with confirmed strep throat, amoxicillin" generated for a case entirely about bariatric surgery, verbatim matching `build_prompt`'s own worked example. The model leaked its few-shot example back as content instead of treating it as a format template. The prompt now explicitly instructs against reusing the example; not yet confirmed whether this fully resolves it.
-- Candidate distinctness is enforced by exact string match on population and intervention, not semantic equivalence. Two candidates that describe the same population or intervention in different words can both pass as distinct, even though they aren't.
+- Candidate distinctness is enforced by exact string match on population, intervention, and comparison, not semantic equivalence. Two candidates that describe the same question in different words can both pass as distinct, even though they aren't.
 - Search translation can under- or over-constrain the query: irrelevant results from poor MeSH mapping, or zero results even after broadening, when the literature is genuinely thin.
 - External dependencies can fail: NCBI rate limits, downtime, or a fetched record missing a field. This needs retry and backoff, not better prompting.
 - Summary generation can hallucinate claims the retrieved abstracts don't support. PMID citations make an unfaithful claim look more credible than an uncited one.
@@ -107,6 +107,7 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 - Summary generation skips the embedding/in-memory-index step for now, working directly off ranked abstracts. Ranking already selects by evidence tier and recency, and with only ~10 fetched abstracts, embeddings aren't proven necessary yet. Still planned via nomic-embed-text, once the simpler version runs end to end.
 - Each pipeline run returns a trace instead of raising on failure. `run_pipeline` records every stage's status, output, and latency, plus every model and NCBI call it made, including retried attempts and broadened searches. A stage failure ends the run with a recorded reason, so a batch of cases keeps going and failures can be counted.
 - Run traces are saved to disk, including the case text and the abstracts each run retrieved. They are a record of what a run saw, used for evaluation, not a store the pipeline reads from: every run still searches PubMed live. They live in a gitignored `runs/` folder.
+- PICO validation accepts 1-4 candidates, treats a different comparison as a distinct question, and allows an empty comparison. On a 20-case development batch on 2026-10-01, 13 of 14 PICO failures came from the earlier rules (2-4 candidates, distinct on population or intervention only, comparison required). Notes describing a single procedure contain one decision and often no stated comparator, so the earlier rules pushed the model to pad its answer or invent a comparator.
 
 ## Docs
 

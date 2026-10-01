@@ -53,17 +53,19 @@ def generate_pico_candidates(case_text, llm_call):
                 f"PICO candidate has unexpected keys: {sorted(candidate.keys())}"
             )
 
-        if not all(candidate.values()):
+        if not all(candidate[key] for key in ("population", "intervention", "outcome")):
             raise ValueError(
                 f"PICO candidate has a missing or empty value: {candidate}"
             )
 
     if len(candidates) != len(
-        {(c["population"], c["intervention"]) for c in candidates}
+        {(c["population"], c["intervention"], c["comparison"]) for c in candidates}
     ):
-        raise ValueError("Duplicate PICO candidates: same population and intervention")
+        raise ValueError(
+            "Duplicate PICO candidates: same population, intervention, and comparison"
+        )
 
-    if len(candidates) < 2 or len(candidates) > 4:
-        raise ValueError("Number of PICO candidates can only be between 2 and 4")
+    if len(candidates) < 1 or len(candidates) > 4:
+        raise ValueError("Number of PICO candidates can only be between 1 and 4")
 
     return candidates

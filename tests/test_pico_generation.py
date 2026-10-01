@@ -31,8 +31,8 @@ def fake_llm_call():
 
 
 @pytest.fixture
-def duplicate_llm_call():
-    def _duplicate_llm_call(prompt):
+def different_comparison_llm_call():
+    def _different_comparison_llm_call(prompt):
         return json.dumps(
             [
                 {
@@ -50,7 +50,7 @@ def duplicate_llm_call():
             ]
         )
 
-    return _duplicate_llm_call
+    return _different_comparison_llm_call
 
 
 @pytest.fixture
@@ -165,8 +165,8 @@ def noisy_response_llm_call():
 
 
 @pytest.fixture
-def null_value_llm_call():
-    def _null_value_llm_call(prompt):
+def null_comparison_llm_call():
+    def _null_comparison_llm_call(prompt):
         return json.dumps(
             [
                 {
@@ -184,18 +184,19 @@ def null_value_llm_call():
             ]
         )
 
-    return _null_value_llm_call
+    return _null_comparison_llm_call
 
 
-def test_generate_pico_candidates_returns_two_four_candidates(fake_llm_call):
+def test_generate_pico_candidates_returns_one_to_four_candidates(fake_llm_call):
     result = generate_pico_candidates("case text", fake_llm_call)
 
-    assert 2 <= len(result) <= 4
+    assert 1 <= len(result) <= 4
 
 
-def test_generate_pico_candidates_raises_on_duplicates(duplicate_llm_call):
-    with pytest.raises(ValueError):
-        generate_pico_candidates("case text", duplicate_llm_call)
+def test_generate_pico_candidates_accepts_different_comparison(different_comparison_llm_call):
+    result = generate_pico_candidates("case text", different_comparison_llm_call)
+
+    assert len(result) == 2
 
 
 def test_generate_pico_candidates_returns_formatted_output(fake_llm_call):
@@ -246,6 +247,97 @@ def test_generate_pico_candidates_parses_response_with_noise(noisy_response_llm_
     assert len(result) == 2
 
 
-def test_generate_pico_candidates_raises_on_null_value(null_value_llm_call):
+def test_generate_pico_candidates_accepts_null_comparison(null_comparison_llm_call):
+    result = generate_pico_candidates("case text", null_comparison_llm_call)
+
+    assert len(result) == 2
+    assert all(candidate["comparison"] is None for candidate in result)
+
+
+@pytest.fixture
+def single_candidate_llm_call():
+    def _single_candidate_llm_call(prompt):
+        return json.dumps(
+            [
+                {
+                    "population": "adults with prostate cancer",
+                    "intervention": "iodine-125 brachytherapy",
+                    "comparison": "watchful waiting",
+                    "outcome": "biochemical recurrence",
+                }
+            ]
+        )
+
+    return _single_candidate_llm_call
+
+
+def test_generate_pico_candidates_accepts_one_candidate(single_candidate_llm_call):
+    result = generate_pico_candidates("case text", single_candidate_llm_call)
+
+    assert len(result) == 1
+
+
+@pytest.fixture
+def five_candidates_llm_call():
+    def _five_candidates_llm_call(prompt):
+        return json.dumps(
+            [
+                {
+                    "population": f"population {n}",
+                    "intervention": f"intervention {n}",
+                    "comparison": f"comparison {n}",
+                    "outcome": f"outcome {n}",
+                }
+                for n in range(1, 6)
+            ]
+        )
+
+    return _five_candidates_llm_call
+
+
+def test_generate_pico_candidates_raises_on_zero_candidates():
     with pytest.raises(ValueError):
-        generate_pico_candidates("case text", null_value_llm_call)
+        generate_pico_candidates("case text", lambda prompt: "[]")
+
+
+def test_generate_pico_candidates_raises_on_five_candidates(five_candidates_llm_call):
+    with pytest.raises(ValueError):
+        generate_pico_candidates("case text", five_candidates_llm_call)
+
+
+PACEMAKER_CANDIDATE = {
+    "population": "older adults with symptomatic bradycardia",
+    "intervention": "permanent pacemaker implantation",
+    "comparison": "medical management",
+    "outcome": "syncope recurrence",
+}
+
+
+def test_generate_pico_candidates_raises_when_only_outcome_differs():
+    response = json.dumps(
+        [PACEMAKER_CANDIDATE, {**PACEMAKER_CANDIDATE, "outcome": "all-cause mortality"}]
+    )
+
+    with pytest.raises(ValueError):
+        generate_pico_candidates("case text", lambda prompt: response)
+
+
+def test_generate_pico_candidates_raises_on_exact_copies():
+    response = json.dumps([PACEMAKER_CANDIDATE, PACEMAKER_CANDIDATE])
+
+    with pytest.raises(ValueError):
+        generate_pico_candidates("case text", lambda prompt: response)
+
+
+def test_generate_pico_candidates_raises_on_null_outcome():
+    response = json.dumps([{**PACEMAKER_CANDIDATE, "outcome": None}])
+
+    with pytest.raises(ValueError):
+        generate_pico_candidates("case text", lambda prompt: response)
+
+
+def test_generate_pico_candidates_raises_on_empty_population():
+    response = json.dumps([{**PACEMAKER_CANDIDATE, "population": ""}])
+
+    with pytest.raises(ValueError):
+        generate_pico_candidates("case text", lambda prompt: response)
