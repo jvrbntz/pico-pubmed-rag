@@ -42,3 +42,9 @@ Cases are a seeded random sample of 15-20 from the cleaned dataset, with the see
 The gold PICO is the main clinical decision in the note's plan, in plain phrasing. Cases are annotated before looking at any system output. If a note has more than one defensible decision point, the primary one is recorded. An abstract is relevant if it studies the case PICO's population and intervention and reports the comparison or the outcome.
 
 There is one annotator, the project author, so no agreement measure is possible. The gold PICO and the relevance labels are made by hand, with no LLM judge.
+
+## Error analysis
+
+Failed and empty-search runs are reviewed by hand, one run at a time. Each run gets a one-sentence note on what went wrong, then a category assigned after all runs in the review are read.
+
+Each note behind a reviewed run is also marked answerable or not. A note is answerable when all of these hold: the note's clinician faced a decision about care; the decision is a foreground question of type therapy, diagnosis, prognosis, or etiology/harm; population, intervention, and outcome can be stated for a definable group of patients, with comparison optional; and published studies on it plausibly exist. Answerable notes also record the question type. Criteria as of 2026-10-01, revised if grading changes them.
