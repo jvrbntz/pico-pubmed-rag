@@ -12,17 +12,15 @@ from pico_pubmed_rag.pubmed_search import (
     search_pubmed,
 )
 
-SAMPLE_PICO = {
-    "population": "adults with strep throat",
-    "intervention": "amoxicillin",
-    "comparison": "penicillin",
-    "outcome": "symptom resolution",
+SAMPLE_SEARCH_TERMS = {
+    "population_terms": "streptococcal pharyngitis",
+    "intervention_terms": "amoxicillin",
 }
 
 if __name__ == "__main__":
     load_dotenv()
 
-    query = build_search_query(SAMPLE_PICO)
+    query = build_search_query(SAMPLE_SEARCH_TERMS)
     print(f"Query: {query}\n")
 
     pmids = search_pubmed(query, esearch_get)

@@ -1,11 +1,15 @@
 """Turns a selected PICO into short PubMed search terms via an injected LLM call, and validates them."""
 
 import json
+import re
 
 TERM_KEYS = ("population_terms", "intervention_terms")
 MAX_TERM_WORDS = 4
 QUERY_SYNTAX_CHARACTERS = set('()[]"/')
 BOOLEAN_OPERATORS = {"AND", "OR", "NOT"}
+AGE_PATTERN = re.compile(r"\d+\s*-?\s*(year|yr)", re.IGNORECASE)
+DOSE_PATTERN = re.compile(r"\d+\s*(mg|mcg|g|ml|units?)\b", re.IGNORECASE)
+LONG_NUMBER_PATTERN = re.compile(r"\d{3,}")
 
 
 EXAMPLE_SEARCH_TERMS = {
@@ -20,7 +24,7 @@ def build_search_terms_prompt(pico):
 
     Give the standard medical name of the question's condition and of its treatment or procedure, as each would appear as a medical subject heading. Follow these rules:
     - Use 1 to 4 words for each term.
-    - Do not include ages, digits, laterality (left or right), brand names, device names, or doses.
+    - Do not include ages, doses, years, laterality (left or right), brand names, or device names.
     - Do not use parentheses, quotation marks, slashes, or the words AND, OR, or NOT in capitals.
     - Return a JSON object with exactly two keys, "population_terms" and "intervention_terms", and nothing else.
 
@@ -60,8 +64,8 @@ def extract_search_terms(pico, llm_call):
             raise ValueError(f"Search term {key!r} is missing or empty: {terms!r}")
         if len(terms[key].split()) > MAX_TERM_WORDS:
             raise ValueError(f"Search term has more than {MAX_TERM_WORDS} words: {terms[key]!r}")
-        if any(character.isdigit() for character in terms[key]):
-            raise ValueError(f"Search term contains a digit: {terms[key]!r}")
+        if any(pattern.search(terms[key]) for pattern in (AGE_PATTERN, DOSE_PATTERN, LONG_NUMBER_PATTERN)):
+            raise ValueError(f"Search term contains an age, dose, or long number: {terms[key]!r}")
         if QUERY_SYNTAX_CHARACTERS & set(terms[key]) or BOOLEAN_OPERATORS & set(terms[key].split()):
             raise ValueError(f"Search term contains PubMed query syntax: {terms[key]!r}")
 

@@ -7,6 +7,10 @@ VALID_PICO_RESPONSE = (
     '"comparison": "metformin", "outcome": "weight loss"}]'
 )
 
+VALID_SEARCH_TERMS_RESPONSE = (
+    '{"population_terms": "type 2 diabetes mellitus", "intervention_terms": "metformin"}'
+)
+
 VALID_SUMMARY = (
     "Evidence Summary: Metformin lowered HbA1c more than sulfonylurea "
     "(PMID: 1234567). This is not a diagnosis or treatment recommendation."
@@ -44,10 +48,16 @@ def scripted_model_call(responses):
     return _model_call
 
 
-def routing_model_call(pico_response=VALID_PICO_RESPONSE, summary_response=VALID_SUMMARY):
+def routing_model_call(
+    pico_response=VALID_PICO_RESPONSE,
+    summary_response=VALID_SUMMARY,
+    search_terms_response=VALID_SEARCH_TERMS_RESPONSE,
+):
     def _model_call(prompt):
         if "Now extract PICO candidates" in prompt:
             return pico_response
+        if "medical librarian" in prompt:
+            return search_terms_response
         return summary_response
 
     return _model_call

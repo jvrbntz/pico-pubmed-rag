@@ -15,13 +15,8 @@ from pico_pubmed_rag.pubmed_search import (
 
 
 @pytest.fixture
-def sample_pico():
-    return {
-        "population": "adults with strep throat",
-        "intervention": "amoxicillin",
-        "comparison": "penicillin",
-        "outcome": "symptom resolution",
-    }
+def sample_search_terms():
+    return {"population_terms": "streptococcal pharyngitis", "intervention_terms": "amoxicillin"}
 
 
 @pytest.fixture
@@ -111,24 +106,24 @@ def http_get_needs_broadening():
     return _http_get_needs_broadening
 
 
-def test_build_search_query_returns_string(sample_pico):
-    result = build_search_query(sample_pico)
+def test_build_search_query_returns_string(sample_search_terms):
+    result = build_search_query(sample_search_terms)
     assert isinstance(result, str)
 
 
-def test_build_search_query_includes_population_and_intervention(sample_pico):
-    result = build_search_query(sample_pico)
-    assert sample_pico["population"] in result
-    assert sample_pico["intervention"] in result
+def test_build_search_query_uses_the_search_terms(sample_search_terms):
+    result = build_search_query(sample_search_terms)
+    assert sample_search_terms["population_terms"] in result
+    assert sample_search_terms["intervention_terms"] in result
 
 
-def test_build_search_query_joins_population_and_intervention_with_and(sample_pico):
-    result = build_search_query(sample_pico)
-    assert f"{sample_pico['population']} AND {sample_pico['intervention']}" in result
+def test_build_search_query_joins_search_terms_with_and(sample_search_terms):
+    result = build_search_query(sample_search_terms)
+    assert result.startswith("streptococcal pharyngitis AND amoxicillin")
 
 
-def test_build_search_query_includes_publication_type_filter(sample_pico):
-    result = build_search_query(sample_pico)
+def test_build_search_query_includes_publication_type_filter(sample_search_terms):
+    result = build_search_query(sample_search_terms)
     assert "(Randomized Controlled Trial[pt] OR Systematic Review[pt])" in result
 
 

@@ -9,6 +9,7 @@ from pico_pubmed_rag.data_cleaning import clean_dataset
 from pico_pubmed_rag.llm_client import call_llm
 from pico_pubmed_rag.pico_generation import generate_pico_candidates
 from pico_pubmed_rag.pico_selection import select_pico
+from pico_pubmed_rag.search_terms import extract_search_terms
 from pico_pubmed_rag.pubmed_search import (
     build_search_query,
     efetch_get,
@@ -33,7 +34,7 @@ if __name__ == "__main__":
     pico = select_pico(candidates)
     print(f"PICO: {pico}\n")
 
-    query = build_search_query(pico)
+    query = build_search_query(extract_search_terms(pico, call_llm))
     pmids = search_pubmed_with_broadening(query, esearch_get)
     print(f"Found {len(pmids)} PMIDs\n")
 

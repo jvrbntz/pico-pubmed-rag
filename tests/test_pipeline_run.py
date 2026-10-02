@@ -7,7 +7,9 @@ from pico_pubmed_rag.pipeline_run import run_pipeline
 from pico_pubmed_rag.pubmed_search import ConfigurationError
 from pico_pubmed_rag.summary_generation import generate_summary
 from tests.pipeline_fakes import (
+    routing_model_call,
     VALID_PICO_RESPONSE,
+    VALID_SEARCH_TERMS_RESPONSE,
     VALID_SUMMARY,
     VALID_XML,
     scripted_model_call,
@@ -76,6 +78,8 @@ def pico_response_missing_outcome_llm_call():
 @pytest.fixture
 def valid_pico_llm_call():
     def _model_call(prompt):
+        if "medical librarian" in prompt:
+            return VALID_SEARCH_TERMS_RESPONSE
         return (
             '[{"population": "adults with type 2 diabetes", "intervention": "metformin", '
             '"comparison": "sulfonylurea", "outcome": "HbA1c reduction"}, '
@@ -198,6 +202,7 @@ def test_unknown_case_id_fails_without_raising(
     other_stages = [
         "generate_pico_candidates",
         "select_pico",
+        "extract_search_terms",
         "build_search_query",
         "search",
         "fetch",
@@ -234,6 +239,7 @@ def test_pico_validation_failure_on_unparseable_response(
 
     for stage_name in [
         "select_pico",
+        "extract_search_terms",
         "build_search_query",
         "search",
         "fetch",
@@ -436,7 +442,7 @@ def test_no_clear_answer_summary_completes_run(
     trace = run_pipeline(
         case_id=87,
         dataset=dataset_with_case_87,
-        model_call=scripted_model_call([VALID_PICO_RESPONSE, NO_CLEAR_ANSWER_SUMMARY]),
+        model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SEARCH_TERMS_RESPONSE, NO_CLEAR_ANSWER_SUMMARY]),
         search_call=search_call_strict_hits,
         fetch_call=fetch_call_valid_xml,
         run_metadata=RUN_METADATA,
@@ -458,7 +464,7 @@ def test_summary_retry_records_both_attempts(
         case_id=87,
         dataset=dataset_with_case_87,
         model_call=scripted_model_call(
-            [VALID_PICO_RESPONSE, UNCITED_SUMMARY, VALID_SUMMARY]
+            [VALID_PICO_RESPONSE, VALID_SEARCH_TERMS_RESPONSE, UNCITED_SUMMARY, VALID_SUMMARY]
         ),
         search_call=search_call_strict_hits,
         fetch_call=fetch_call_valid_xml,
@@ -482,7 +488,7 @@ def test_summary_both_attempts_fail_keeps_both_responses(
         case_id=87,
         dataset=dataset_with_case_87,
         model_call=scripted_model_call(
-            [VALID_PICO_RESPONSE, UNCITED_SUMMARY, UNCITED_SUMMARY]
+            [VALID_PICO_RESPONSE, VALID_SEARCH_TERMS_RESPONSE, UNCITED_SUMMARY, UNCITED_SUMMARY]
         ),
         search_call=search_call_strict_hits,
         fetch_call=fetch_call_valid_xml,
@@ -503,6 +509,7 @@ def test_summary_both_attempts_fail_keeps_both_responses(
         "load_case",
         "generate_pico_candidates",
         "select_pico",
+        "extract_search_terms",
         "build_search_query",
         "search",
         "fetch",
@@ -520,7 +527,7 @@ def test_tracing_does_not_change_summary(
     trace = run_pipeline(
         case_id=87,
         dataset=dataset_with_case_87,
-        model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SUMMARY]),
+        model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SEARCH_TERMS_RESPONSE, VALID_SUMMARY]),
         search_call=search_call_strict_hits,
         fetch_call=fetch_call_valid_xml,
         run_metadata=RUN_METADATA,
@@ -539,6 +546,7 @@ PIPELINE_ORDER = [
     "load_case",
     "generate_pico_candidates",
     "select_pico",
+    "extract_search_terms",
     "build_search_query",
     "search",
     "fetch",
@@ -556,7 +564,7 @@ def test_completed_run_has_all_stages_and_header(
     trace = run_pipeline(
         case_id=87,
         dataset=dataset_with_case_87,
-        model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SUMMARY]),
+        model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SEARCH_TERMS_RESPONSE, VALID_SUMMARY]),
         search_call=search_call_strict_hits,
         fetch_call=fetch_call_valid_xml,
         run_metadata=RUN_METADATA,
@@ -569,7 +577,9 @@ def test_completed_run_has_all_stages_and_header(
     assert trace["case_id"] == 87
     assert trace["run_metadata"] == RUN_METADATA
     assert trace["run_id"]
-    assert trace["schema_version"] == 1
+    assert trace["schema_version"] == 2
+    strict_query = trace["stages"]["search"]["call_records"][0]["query"]
+    assert strict_query.startswith("type 2 diabetes mellitus AND metformin")
     assert trace["started_at"].endswith("+00:00")
     assert trace["total_latency_s"] >= 0
 
@@ -582,7 +592,7 @@ def test_stages_are_tagged_by_service(
     trace = run_pipeline(
         case_id=87,
         dataset=dataset_with_case_87,
-        model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SUMMARY]),
+        model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SEARCH_TERMS_RESPONSE, VALID_SUMMARY]),
         search_call=search_call_strict_hits,
         fetch_call=fetch_call_valid_xml,
         run_metadata=RUN_METADATA,
@@ -593,6 +603,7 @@ def test_stages_are_tagged_by_service(
         "load_case": "none",
         "generate_pico_candidates": "local",
         "select_pico": "none",
+        "extract_search_terms": "local",
         "build_search_query": "none",
         "search": "external",
         "fetch": "external",
@@ -611,7 +622,7 @@ def test_repeat_runs_differ_only_in_id_timestamp_and_latency(
         run_pipeline(
             case_id=87,
             dataset=dataset_with_case_87,
-            model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SUMMARY]),
+            model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SEARCH_TERMS_RESPONSE, VALID_SUMMARY]),
             search_call=search_call_strict_hits,
             fetch_call=fetch_call_valid_xml,
             run_metadata=RUN_METADATA,
@@ -641,7 +652,7 @@ def test_every_stage_that_ran_records_latency(
     trace = run_pipeline(
         case_id=87,
         dataset=dataset_with_case_87,
-        model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SUMMARY]),
+        model_call=scripted_model_call([VALID_PICO_RESPONSE, VALID_SEARCH_TERMS_RESPONSE, VALID_SUMMARY]),
         search_call=search_call_strict_hits,
         fetch_call=fetch_call_valid_xml,
         run_metadata=RUN_METADATA,
@@ -764,6 +775,7 @@ def test_pico_validation_failure_on_missing_outcome_key(
 
     for stage_name in [
         "select_pico",
+        "extract_search_terms",
         "build_search_query",
         "search",
         "fetch",
@@ -771,4 +783,29 @@ def test_pico_validation_failure_on_missing_outcome_key(
         "rank",
         "generate_summary",
     ]:
+        assert trace["stages"][stage_name]["status"] == "skipped"
+
+
+def test_invalid_search_terms_fail_the_run_and_keep_the_raw_response(
+    dataset_with_case_87,
+    search_call_should_not_be_called,
+    fetch_call_should_not_be_called,
+):
+    six_word_terms = '{"population_terms": "older adults with severe knee osteoarthritis", "intervention_terms": "knee replacement"}'
+
+    trace = run_pipeline(
+        case_id=87,
+        dataset=dataset_with_case_87,
+        model_call=routing_model_call(search_terms_response=six_word_terms),
+        search_call=search_call_should_not_be_called,
+        fetch_call=fetch_call_should_not_be_called,
+        run_metadata=RUN_METADATA,
+    )
+
+    assert trace["run_outcome"] == "failed"
+    terms_record = trace["stages"]["extract_search_terms"]
+    assert terms_record["status"] == "failed"
+    assert terms_record["failure_tag"] == "validation"
+    assert terms_record["call_records"][0]["response"] == six_word_terms
+    for stage_name in ["build_search_query", "search", "fetch", "parse", "rank", "generate_summary"]:
         assert trace["stages"][stage_name]["status"] == "skipped"

@@ -42,11 +42,26 @@ def test_accepts_four_words_and_rejects_five():
 
 @pytest.mark.parametrize(
     "population_terms, intervention_terms",
-    [("64-year-old women", "hysterectomy"), ("prostate cancer", "iodine-125 brachytherapy")],
+    [
+        ("64-year-old women", "hysterectomy"),
+        ("64 year old women", "hysterectomy"),
+        ("prostate cancer", "iodine-125 brachytherapy"),
+        ("pediatric fever", "acetaminophen 15 mg"),
+        ("atrial fibrillation", "warfarin 5mg"),
+    ],
 )
-def test_rejects_terms_containing_digits(population_terms, intervention_terms):
+def test_rejects_ages_doses_and_long_numbers(population_terms, intervention_terms):
     with pytest.raises(ValueError):
         extract_search_terms(SELECTED_PICO, respond_with(population_terms, intervention_terms))
+
+
+@pytest.mark.parametrize(
+    "population_terms",
+    ["type 2 diabetes mellitus", "COVID-19 pneumonia", "stage 2 breast cancer"],
+)
+def test_accepts_digits_that_are_part_of_a_concept(population_terms):
+    result = extract_search_terms(SELECTED_PICO, respond_with(population_terms, "standard therapy"))
+    assert result["population_terms"] == population_terms
 
 
 def test_rejects_missing_or_empty_terms():
@@ -93,7 +108,7 @@ def test_prompt_contains_the_pico_the_rules_and_the_example():
 
     for value in SELECTED_PICO.values():
         assert value in prompt
-    for rule in ["1 to 4 words", "digits", "brand names", "laterality"]:
+    for rule in ["1 to 4 words", "ages, doses, years", "brand names", "laterality"]:
         assert rule in prompt
     for example_term in EXAMPLE_SEARCH_TERMS.values():
         assert example_term in prompt

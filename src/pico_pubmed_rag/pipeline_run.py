@@ -16,16 +16,18 @@ from pico_pubmed_rag.pubmed_search import (
     parse_pubmed_xml,
     search_pubmed_with_broadening,
 )
+from pico_pubmed_rag.search_terms import extract_search_terms
 from pico_pubmed_rag.summary_generation import generate_summary
 
 FETCH_SIZE = 5
 
-TRACE_SCHEMA_VERSION = 1
+TRACE_SCHEMA_VERSION = 2
 
 SERVICE_TAGS = {
     "load_case": "none",
     "generate_pico_candidates": "local",
     "select_pico": "none",
+    "extract_search_terms": "local",
     "build_search_query": "none",
     "search": "external",
     "fetch": "external",
@@ -38,14 +40,14 @@ STAGE_NAMES = list(SERVICE_TAGS)
 
 
 def run_pipeline(case_id, dataset, model_call, search_call, fetch_call, run_metadata):
-    """Runs one case through all nine stages and returns its trace (schema version 1).
+    """Runs one case through all ten stages and returns its trace (schema version 2).
 
     Trace fields:
         run_id: unique hex ID for this run.
         case_id: the case that was run.
         started_at: UTC start time, ISO 8601.
         total_latency_s: wall-clock seconds for the whole run.
-        schema_version: 1.
+        schema_version: 2 (version 1 traces have nine stages, without extract_search_terms).
         run_metadata: the caller's dict, unchanged (the batch runner adds batch_id and repeat).
         run_outcome: "completed", "no_evidence", or "failed".
         stages: one stage record per stage, in pipeline order, keyed by stage name.
@@ -59,7 +61,7 @@ def run_pipeline(case_id, dataset, model_call, search_call, fetch_call, run_meta
             is "validation", "configuration", or "unexpected".
         skip_reason: "not reached", or "no_evidence" when search found nothing (skipped only).
         call_records: every model or NCBI call the stage made, in order (generate_pico_candidates,
-            search, fetch, generate_summary only).
+            extract_search_terms, search, fetch, generate_summary only).
 
     Call record fields:
         prompt, query, or pmids: what was sent.
@@ -120,7 +122,16 @@ def run_pipeline(case_id, dataset, model_call, search_call, fetch_call, run_meta
     if not ok:
         return finish("failed")
 
-    ok, query = run_stage("build_search_query", lambda: build_search_query(pico))
+    recording_terms_call, terms_call_records = _recording_call(model_call, "prompt")
+    ok, search_terms = run_stage(
+        "extract_search_terms",
+        lambda: extract_search_terms(pico, recording_terms_call),
+        terms_call_records,
+    )
+    if not ok:
+        return finish("failed")
+
+    ok, query = run_stage("build_search_query", lambda: build_search_query(search_terms))
     if not ok:
         return finish("failed")
 

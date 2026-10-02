@@ -13,8 +13,8 @@ class ConfigurationError(ValueError):
 PUBLICATION_TYPE_FILTER = " AND (Randomized Controlled Trial[pt] OR Systematic Review[pt])"
 
 
-def build_search_query(pico):
-    return f"""{pico["population"]} AND {pico["intervention"]}{PUBLICATION_TYPE_FILTER}"""
+def build_search_query(search_terms):
+    return f"""{search_terms["population_terms"]} AND {search_terms["intervention_terms"]}{PUBLICATION_TYPE_FILTER}"""
 
 
 def search_pubmed(query, http_get):
