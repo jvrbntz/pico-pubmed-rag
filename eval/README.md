@@ -4,11 +4,11 @@ This directory records how this project is evaluated: the procedure, the gold se
 
 ## Status
 
-Operational metrics have been counted by hand on a 20-case development batch (seed 42), used for error analysis and tuning, not as a test set. There's no gold set yet, so nothing in this repo says how good the PICO extraction, retrieval, or summaries actually are. Experiment history, with each run's question, setup, and result, is in `experiments.md`.
+Operational metrics are counted by `scripts/batch_metrics.py` on a 20-case development batch (seed 42), used for error analysis and tuning, not as a test set. There's no gold set yet, so nothing in this repo says how good the PICO extraction, retrieval, or summaries actually are. Experiment history, with each run's question, setup, and result, is in `experiments.md`.
 
 ## Operational metrics
 
-Computed from run traces. No hand labels needed, only a fixed sample of cases. Batches run with `scripts/run_batch.py` and save traces to `runs/`. There's no metrics script yet, so counts so far are computed by hand.
+Computed from run traces. No hand labels needed, only a fixed sample of cases. Batches run with `scripts/run_batch.py` and save traces to `runs/`. `scripts/batch_metrics.py` counts them per repeat, per case, and pooled, and compares two batches case by case.
 
 | Metric | Measures | How counted |
 |---|---|---|
@@ -18,6 +18,10 @@ Computed from run traces. No hand labels needed, only a fixed sample of cases. B
 | No Clear Answer rate | Summaries where the model declines to answer | Summaries labeled "No Clear Answer:", over all summaries |
 | Zero-result rate | Searches that find nothing | Runs where the strict query returns zero PMIDs, and separately, runs where the broadened query also returns zero |
 | Citation validity | Summaries citing PMIDs that were never fetched | Cited PMIDs found among the run's fetched PMIDs, over all cited PMIDs |
+| Answered | Completed summaries that answer instead of declining | Completed runs whose summary has no "No Clear Answer:" label, over completed runs |
+| Both labels | Summaries carrying both labels | Completed summaries containing "Evidence Summary:" and "No Clear Answer:", over completed runs |
+| Search terms pass | Search terms that pass validation | Runs where the search-terms step succeeds, over runs that reached it |
+| Descriptive queries | Searches phrased as descriptions | Queries whose population and intervention exceed 8 words, over queries built |
 
 ## Quality metrics
 

@@ -76,7 +76,7 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 
 ## Running it
 
-`uv run python scripts/try_full_pipeline.py` runs one MTSamples case through the full pipeline against the local model and live PubMed, prints its trace (each stage's status, service, and latency, the search queries sent, and the summary), and appends it to `runs/smoke_runs.jsonl`. `uv run python scripts/run_batch.py --size 20 --seed 42` runs a seeded sample of cases and saves every trace to a timestamped file in `runs/`, logging progress as it goes. `scripts/export_review_sheet.py` turns a batch file's runs into a CSV sheet for error analysis. `uv run pytest` runs the test suite, which uses fakes and needs neither Ollama nor network access.
+`uv run python scripts/try_full_pipeline.py` runs one MTSamples case through the full pipeline against the local model and live PubMed, prints its trace (each stage's status, service, and latency, the search queries sent, and the summary), and appends it to `runs/smoke_runs.jsonl`. `uv run python scripts/run_batch.py --size 20 --seed 42` runs a seeded sample of cases and saves every trace to a timestamped file in `runs/`, logging progress as it goes. `scripts/export_review_sheet.py` turns a batch file's runs into a CSV sheet for error analysis. `uv run python scripts/batch_metrics.py <batch file> --baseline <batch file>` reports a batch's metrics and compares it with a baseline case by case. `uv run pytest` runs the test suite, which uses fakes and needs neither Ollama nor network access.
 
 ## Known limitations
 
@@ -90,7 +90,7 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 - Summary generation can hallucinate claims the retrieved abstracts don't support. PMID citations make an unfaithful claim look more credible than an uncited one.
 - Abstract parsing only captures the first `AbstractText` element per article. Real PubMed records commonly have multiple, structured abstracts split into background/methods/results/conclusions, so parsing can silently drop sections. A related gap, only capturing the first `PublicationType`, was caught against real PubMed data on 2026-09-15 and fixed; see Key Design Decisions.
 - Zero-result broadening only tries one fallback: dropping the publication-type filter. It does not yet widen MeSH terms or drop a less-essential PICO element if that single broadening step still returns nothing.
-- `build_search_query` only uses population and intervention, never comparison or outcome. Searches can match abstracts about the right population and intervention that never address the actual comparison being asked about, which is a real, observed cause of `generate_summary`'s abstracts-don't-answer-the-question responses, not just a search-relevance issue.
+- Searches use only the population and intervention search terms, never comparison or outcome (see Key Design Decisions). Searches can match abstracts about the right population and intervention that never address the actual comparison being asked about, which is a real, observed cause of `generate_summary`'s abstracts-don't-answer-the-question responses, not just a search-relevance issue.
 
 ## Key Design Decisions
 
