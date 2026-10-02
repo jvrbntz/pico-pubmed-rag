@@ -119,3 +119,23 @@ Setup: commit `f07cb95`, batch `603eb81b`, 3 repeats, fixed sampling, compared c
 | Completed | 14/60 | 7/60 |
 
 Conclusion: failed at the mechanism check (8/53 against at least 90%). 40 of the 45 search-terms failures were a parsing problem: the model writes draft JSON in its reasoning text before the final answer, and the parser read from the first brace to the last, spanning both. The other 5 were caught by validation as intended (lists instead of strings, more than 4 words, an uppercase AND). The paired comparison reported 12 improved and 0 worsened, but that result is invalid: runs that failed before searching were counted as not empty. Recounted with empty searches out of runs that searched: improved 3, worsened 0, unchanged 3, not comparable 14. The 0 of 8 empty searches among runs that did search is a hint only. Next: parse only the text after the reasoning marker, count empty searches out of runs that searched, and rerun as E8b.
+
+## E8b. Search terms with the parsing fix (2026-10-02)
+
+Question: with search terms parsed only from the final answer, does the search-terms change meet the thresholds set for E8?
+
+Setup: commit `0970700`, batch `c198c7aa`, 3 repeats, fixed sampling, compared case by case against E7 with the same pre-set thresholds as E8. Changes since E8: search terms are parsed only from the text after the model's reasoning; short connecting words (of, the, to) do not count toward the 4-word limit; a one-item list is accepted as its string; the digit rule rejects only ages, doses, and numbers of 3 or more digits.
+
+| Metric | E7 | E8b |
+|---|---|---|
+| PICO pass per repeat | 13, 16, 16 | 15, 19, 19 |
+| Search terms pass | (no step) | 48/53 |
+| Zero results after broadening | 28/43 that searched | 2/48 that searched |
+| Completed | 14/60 | 42/60 |
+| Answered | 1/14 completed | 1/42 completed |
+| No Clear Answer | 13/14 completed | 41/42 completed |
+| Words searched, population and intervention combined, median | 12 | 4 |
+
+Paired by case, with empty searches counted out of runs that searched: improved 11, worsened 0, unchanged 5, not comparable 4.
+
+Conclusion: met every threshold set before running (search terms pass 91% against at least 90%; 11 improved and 0 worsened against at least 8 and at most 2; zero results 4% against at most 50%; PICO pass within 3 of E7). Empty searches fell from 65% to 4% of searches, and completed runs tripled. The bottleneck has moved to the summary step: 41 of 42 completed summaries declined to answer, 40 of them carrying both labels. 4 runs failed at parsing, a failure that was rare while few runs reached it.
