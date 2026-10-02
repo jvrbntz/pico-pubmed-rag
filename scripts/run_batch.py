@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 from pico_pubmed_rag.batch_run import draw_case_sample, run_batch
 from pico_pubmed_rag.data_cleaning import clean_dataset
-from pico_pubmed_rag.llm_client import call_llm
+from pico_pubmed_rag.llm_client import SAMPLING_OPTIONS, call_llm
 from pico_pubmed_rag.pubmed_search import efetch_get, esearch_get
 
 
@@ -58,6 +58,7 @@ if __name__ == "__main__":
         run_metadata={
             "git_commit": current_git_commit(),
             "model": os.environ.get("OLLAMA_LLM_MODEL"),
+            "sampling": SAMPLING_OPTIONS,
             "seed": None if args.cases else args.seed,
             "case_ids": case_ids,
         },

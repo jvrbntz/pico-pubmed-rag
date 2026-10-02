@@ -4,13 +4,15 @@ import os
 
 import ollama
 
+SAMPLING_OPTIONS = {"temperature": 0, "seed": 42}
 
-def call_llm(prompt):
+
+def call_llm(prompt, generate=ollama.generate):
     model = os.environ.get("OLLAMA_LLM_MODEL")
     if not model:
         raise ValueError(
             "OLLAMA_LLM_MODEL is not set. Copy .env.example to .env and fill it in."
         )
 
-    response = ollama.generate(model=model, prompt=prompt)
+    response = generate(model=model, prompt=prompt, options=SAMPLING_OPTIONS)
     return response["response"]
