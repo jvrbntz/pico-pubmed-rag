@@ -37,7 +37,7 @@ def test_accepts_four_words_and_rejects_five():
     assert four["population_terms"] == "severe knee osteoarthritis adults"
 
     with pytest.raises(ValueError):
-        extract_search_terms(SELECTED_PICO, respond_with("older adults with knee osteoarthritis", "knee replacement"))
+        extract_search_terms(SELECTED_PICO, respond_with("older adults severe knee osteoarthritis", "knee replacement"))
 
 
 @pytest.mark.parametrize(
@@ -112,3 +112,41 @@ def test_prompt_contains_the_pico_the_rules_and_the_example():
         assert rule in prompt
     for example_term in EXAMPLE_SEARCH_TERMS.values():
         assert example_term in prompt
+
+
+def test_ignores_draft_json_in_the_reasoning_text():
+    response = (
+        "<unused94>thought\nConstruct the JSON:\n```json\n"
+        '{\n  "population_terms": "Benign Prostatic Hyperplasia",\n  "intervention_terms": "TURP"\n}\n```\n'
+        "This matches the structure.<unused95> ```json\n"
+        '{"population_terms": "benign prostatic hyperplasia", "intervention_terms": "transurethral resection of prostate"}\n```'
+    )
+
+    result = extract_search_terms(SELECTED_PICO, lambda prompt: response)
+
+    assert result == {
+        "population_terms": "benign prostatic hyperplasia",
+        "intervention_terms": "transurethral resection of prostate",
+    }
+
+
+def test_short_connecting_words_do_not_count_toward_the_word_limit():
+    result = extract_search_terms(
+        SELECTED_PICO, respond_with("benign prostatic hyperplasia", "transurethral resection of the prostate")
+    )
+    assert result["intervention_terms"] == "transurethral resection of the prostate"
+
+    with pytest.raises(ValueError):
+        extract_search_terms(
+            SELECTED_PICO, respond_with("aortoiliac occlusive disease adults bilateral", "bypass")
+        )
+
+
+def test_accepts_one_item_lists_and_rejects_longer_lists():
+    one_item = json.dumps({"population_terms": ["uterine leiomyoma"], "intervention_terms": ["hysterectomy"]})
+    result = extract_search_terms(SELECTED_PICO, lambda prompt: one_item)
+    assert result == {"population_terms": "uterine leiomyoma", "intervention_terms": "hysterectomy"}
+
+    two_items = json.dumps({"population_terms": ["dermatochalasis"], "intervention_terms": ["blepharoplasty", "brow lift"]})
+    with pytest.raises(ValueError):
+        extract_search_terms(SELECTED_PICO, lambda prompt: two_items)

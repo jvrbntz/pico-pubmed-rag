@@ -3,8 +3,10 @@
 import json
 import re
 
+REASONING_END_MARKER = "<unused95>"
 TERM_KEYS = ("population_terms", "intervention_terms")
 MAX_TERM_WORDS = 4
+CONNECTING_WORDS = {"of", "the", "a", "an", "to", "in", "for", "with"}
 QUERY_SYNTAX_CHARACTERS = set('()[]"/')
 BOOLEAN_OPERATORS = {"AND", "OR", "NOT"}
 AGE_PATTERN = re.compile(r"\d+\s*-?\s*(year|yr)", re.IGNORECASE)
@@ -26,7 +28,7 @@ def build_search_terms_prompt(pico):
     - Use 1 to 4 words for each term.
     - Do not include ages, doses, years, laterality (left or right), brand names, or device names.
     - Do not use parentheses, quotation marks, slashes, or the words AND, OR, or NOT in capitals.
-    - Return a JSON object with exactly two keys, "population_terms" and "intervention_terms", and nothing else.
+    - Return a JSON object with exactly two keys, "population_terms" and "intervention_terms", and nothing else. Each value is a single string, not a list.
 
     Example clinical question: adults with confirmed strep throat treated with amoxicillin compared with penicillin.
     Response: {json.dumps(EXAMPLE_SEARCH_TERMS)}
@@ -49,10 +51,15 @@ def _extract_json_object(text):
     return text[start : end + 1]
 
 
+def _content_word_count(term):
+    return sum(word.lower() not in CONNECTING_WORDS for word in term.split())
+
+
 def extract_search_terms(pico, llm_call):
     response = llm_call(build_search_terms_prompt(pico))
+    final_answer = response.rsplit(REASONING_END_MARKER, 1)[-1]
     try:
-        terms = json.loads(_extract_json_object(response))
+        terms = json.loads(_extract_json_object(final_answer))
     except json.JSONDecodeError as e:
         raise ValueError(f"LLM response was not valid JSON: {e}") from e
 
@@ -60,9 +67,12 @@ def extract_search_terms(pico, llm_call):
         raise ValueError(f"Search terms have unexpected keys: {terms!r}")
 
     for key in TERM_KEYS:
+        value = terms.get(key)
+        if isinstance(value, list) and len(value) == 1:
+            terms[key] = value[0]
         if not isinstance(terms.get(key), str) or not terms[key].strip():
             raise ValueError(f"Search term {key!r} is missing or empty: {terms!r}")
-        if len(terms[key].split()) > MAX_TERM_WORDS:
+        if _content_word_count(terms[key]) > MAX_TERM_WORDS:
             raise ValueError(f"Search term has more than {MAX_TERM_WORDS} words: {terms[key]!r}")
         if any(pattern.search(terms[key]) for pattern in (AGE_PATTERN, DOSE_PATTERN, LONG_NUMBER_PATTERN)):
             raise ValueError(f"Search term contains an age, dose, or long number: {terms[key]!r}")
