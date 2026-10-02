@@ -87,3 +87,19 @@ Setup: commit `854a120`, batch `81a7b95b`, cases 207, 720, 1808, 1845, 2024 (all
 | 2024 | 10 | 1080 |
 
 Raw PICO responses still differed in 5 of 5 cases, and the outcome changed in 3 of 5. Responses matched for longer, then split on a near-tie between two words, and the model's long reasoning text (1,500 to 7,500 characters) carried the split into a different answer. Conclusion: fixed sampling reduces variance but does not remove it on this setup; comparisons still need repeats.
+
+## E7. Run-to-run variance under fixed sampling (2026-10-02)
+
+Question: with temperature 0 and seed 42, how much do results still change between identical runs, and do the rates themselves change?
+
+Setup: commit `854a120`, batch `edde8017`, 3 repeats.
+
+| | E4 (default sampling) | E7 (fixed sampling) |
+|---|---|---|
+| PICO pass per repeat | 16, 15, 16 | 13, 16, 16 |
+| Completed per repeat | 7, 9, 9 | 4, 5, 5 |
+| Cases that changed outcome across repeats | 14/20 | 9/20 |
+| Cases with identical PICO text on every repeat | 0/20 | 0/20 |
+| Zero results after broadening, pooled | 22/47 | 28/45 |
+
+Conclusion: fixed sampling reduced outcome changes between repeats but did not remove them, and PICO pass still varied by 3 between repeats. Completed runs were lower under fixed sampling; strict queries had the same length under both settings (median 20 words), so the cause is not yet known. Fixed sampling is kept for experiments, and E7 replaces E4 as the baseline for later comparisons.
