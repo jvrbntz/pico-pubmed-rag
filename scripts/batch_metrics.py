@@ -61,6 +61,7 @@ def print_comparison(comparison):
     repeats = comparison["repeats"]
     if repeats["differ"]:
         print(f"Repeat counts differ: baseline {repeats['baseline']}, candidate {repeats['candidate']}; shares are compared.\n")
+    print("Empty searches are counted out of the runs that searched.\n")
     print("| Case | Empty before | Empty after | Completed before | Completed after | Verdict |")
     print("|---|---|---|---|---|---|")
     for case_id, case in comparison["cases"].items():
@@ -69,7 +70,10 @@ def print_comparison(comparison):
             f"| {fmt(case['completed_before'])} | {fmt(case['completed_after'])} | {case['verdict']} |"
         )
     verdicts = comparison["verdicts"]
-    print(f"\nImproved {verdicts['improved']}, worsened {verdicts['worsened']}, unchanged {verdicts['unchanged']}.")
+    print(
+        f"\nImproved {verdicts['improved']}, worsened {verdicts['worsened']}, "
+        f"unchanged {verdicts['unchanged']}, not comparable {verdicts['not comparable']}."
+    )
     if comparison["only_in_baseline"] or comparison["only_in_candidate"]:
         print(f"Only in baseline: {comparison['only_in_baseline']}; only in candidate: {comparison['only_in_candidate']}")
 

@@ -248,7 +248,7 @@ def test_paired_comparison_gives_a_verdict_per_shared_case_and_lists_unmatched_c
         "verdict": "improved",
     }
     assert comparison["cases"][2]["verdict"] == "worsened"
-    assert comparison["verdicts"] == {"improved": 1, "worsened": 1, "unchanged": 0}
+    assert comparison["verdicts"] == {"improved": 1, "worsened": 1, "unchanged": 0, "not comparable": 0}
     assert comparison["only_in_baseline"] == []
     assert comparison["only_in_candidate"] == [4]
 
@@ -292,3 +292,27 @@ def test_query_words_come_from_search_terms_when_present_and_terms_pass_rate_is_
     assert pooled["query_words"]["median"] == 7.5
     assert pooled["query_words"]["max"] == 11
     assert pooled["search_terms_pass"] == {"count": 1, "of": 2}
+
+
+def test_paired_comparison_counts_empty_searches_only_among_runs_that_searched():
+    baseline = [
+        make_trace(1, repeat=1, outcome="no_evidence"),
+        make_trace(1, repeat=2, outcome="no_evidence"),
+        make_trace(2, repeat=1, outcome="no_evidence"),
+        make_trace(2, repeat=2, outcome="completed"),
+    ]
+    candidate = [
+        make_trace(1, repeat=1, search_terms_failed=True),
+        make_trace(1, repeat=2, search_terms_failed=True),
+        make_trace(2, repeat=1, outcome="no_evidence"),
+        make_trace(2, repeat=2, search_terms_failed=True),
+    ]
+
+    comparison = compare_batches(baseline, candidate)
+
+    assert comparison["cases"][1]["empty_after"] == {"count": 0, "of": 0}
+    assert comparison["cases"][1]["verdict"] == "not comparable"
+    assert comparison["cases"][2]["empty_before"] == {"count": 1, "of": 2}
+    assert comparison["cases"][2]["empty_after"] == {"count": 1, "of": 1}
+    assert comparison["cases"][2]["verdict"] == "worsened"
+    assert comparison["verdicts"]["not comparable"] == 1

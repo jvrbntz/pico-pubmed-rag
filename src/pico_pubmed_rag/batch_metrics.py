@@ -198,7 +198,7 @@ def compare_batches(baseline_traces, candidate_traces):
     shared = sorted(baseline.keys() & candidate.keys())
 
     cases = {case_id: _paired_case(baseline[case_id], candidate[case_id]) for case_id in shared}
-    verdicts = {"improved": 0, "worsened": 0, "unchanged": 0}
+    verdicts = {"improved": 0, "worsened": 0, "unchanged": 0, "not comparable": 0}
     for case in cases.values():
         verdicts[case["verdict"]] += 1
 
@@ -232,17 +232,25 @@ def _outcome_share(traces, outcome):
     return _rate(sum(t["run_outcome"] == outcome for t in traces), len(traces))
 
 
+def _empty_share(traces):
+    searched = [t for t in traces if _stage_succeeded(t, "search")]
+    return _rate(sum(t["run_outcome"] == "no_evidence" for t in searched), len(searched))
+
+
 def _paired_case(before, after):
-    empty_before = _outcome_share(before, "no_evidence")
-    empty_after = _outcome_share(after, "no_evidence")
-    before_share = empty_before["count"] / empty_before["of"]
-    after_share = empty_after["count"] / empty_after["of"]
-    if after_share < before_share:
-        verdict = "improved"
-    elif after_share > before_share:
-        verdict = "worsened"
+    empty_before = _empty_share(before)
+    empty_after = _empty_share(after)
+    if not empty_before["of"] or not empty_after["of"]:
+        verdict = "not comparable"
     else:
-        verdict = "unchanged"
+        before_share = empty_before["count"] / empty_before["of"]
+        after_share = empty_after["count"] / empty_after["of"]
+        if after_share < before_share:
+            verdict = "improved"
+        elif after_share > before_share:
+            verdict = "worsened"
+        else:
+            verdict = "unchanged"
     return {
         "empty_before": empty_before,
         "empty_after": empty_after,

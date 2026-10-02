@@ -103,3 +103,19 @@ Setup: commit `854a120`, batch `edde8017`, 3 repeats.
 | Zero results after broadening, pooled | 22/47 that searched | 28/43 that searched |
 
 Conclusion: fixed sampling reduced outcome changes between repeats but did not remove them, and PICO pass still varied by 3 between repeats. Completed runs were lower under fixed sampling; strict queries had the same length under both settings (median 20 words), so the cause is not yet known. Fixed sampling is kept for experiments, and E7 replaces E4 as the baseline for later comparisons. Correction (2026-10-02): the zero-results denominator was first hand-counted as 28/45, using PICO passes; batch metrics showed 2 runs (cases 247 and 4499) passed PICO but failed at search on a non-JSON response from NCBI, so 43 runs searched.
+
+## E8. Search on short search terms (2026-10-02)
+
+Question: does building the PubMed query from short search terms, produced by a separate model step, reduce empty searches?
+
+Setup: commit `f07cb95`, batch `603eb81b`, 3 repeats, fixed sampling, compared case by case against E7. Thresholds set before running: at least 8 of 20 cases improved and at most 2 worsened on empty searches; zero results after broadening at most 50% of runs that searched; search terms pass at least 90% of runs that reached the step; PICO pass per repeat within 3 of E7. Measurement follows the eval audit: paired at the case level, with mechanism checks.
+
+| Metric | E7 | E8 |
+|---|---|---|
+| PICO pass per repeat | 13, 16, 16 | 15, 19, 19 |
+| Search terms pass | (no step) | 8/53 |
+| Runs that searched | 43/60 | 8/60 |
+| Zero results after broadening | 28/43 | 0/8 |
+| Completed | 14/60 | 7/60 |
+
+Conclusion: failed at the mechanism check (8/53 against at least 90%). 40 of the 45 search-terms failures were a parsing problem: the model writes draft JSON in its reasoning text before the final answer, and the parser read from the first brace to the last, spanning both. The other 5 were caught by validation as intended (lists instead of strings, more than 4 words, an uppercase AND). The paired comparison reported 12 improved and 0 worsened, but that result is invalid: runs that failed before searching were counted as not empty. Recounted with empty searches out of runs that searched: improved 3, worsened 0, unchanged 3, not comparable 14. The 0 of 8 empty searches among runs that did search is a hint only. Next: parse only the text after the reasoning marker, count empty searches out of runs that searched, and rerun as E8b.
