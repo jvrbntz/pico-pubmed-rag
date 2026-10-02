@@ -2,6 +2,25 @@
 
 import json
 
+EXAMPLE_CANDIDATES = [
+    {
+        "population": "adults with confirmed strep throat",
+        "intervention": "amoxicillin",
+        "comparison": "penicillin",
+        "outcome": "symptom resolution",
+    },
+    {
+        "population": "adults with confirmed strep throat",
+        "intervention": "watchful waiting",
+        "comparison": "amoxicillin",
+        "outcome": "complication rate",
+    },
+]
+
+
+def _format_example_candidates():
+    return ",\n".join("        " + json.dumps(candidate) for candidate in EXAMPLE_CANDIDATES)
+
 
 def build_prompt(case_text):
     return f"""
@@ -22,8 +41,7 @@ def build_prompt(case_text):
 
     Response:
     [
-        {{"population": "adults with confirmed strep throat", "intervention": "amoxicillin", "comparison": "penicillin", "outcome": "symptom resolution"}},
-        {{"population": "adults with confirmed strep throat", "intervention": "watchful waiting", "comparison": "amoxicillin", "outcome": "complication rate"}}
+{_format_example_candidates()}
         ]
 
     The example above shows the required format only. Do not reuse its population, intervention, comparison, or outcome in your answer. Every candidate must come only from the case note below, not from the example.
