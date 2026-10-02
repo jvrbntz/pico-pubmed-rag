@@ -100,6 +100,6 @@ Setup: commit `854a120`, batch `edde8017`, 3 repeats.
 | Completed per repeat | 7, 9, 9 | 4, 5, 5 |
 | Cases that changed outcome across repeats | 14/20 | 9/20 |
 | Cases with identical PICO text on every repeat | 0/20 | 0/20 |
-| Zero results after broadening, pooled | 22/47 | 28/45 |
+| Zero results after broadening, pooled | 22/47 that searched | 28/43 that searched |
 
-Conclusion: fixed sampling reduced outcome changes between repeats but did not remove them, and PICO pass still varied by 3 between repeats. Completed runs were lower under fixed sampling; strict queries had the same length under both settings (median 20 words), so the cause is not yet known. Fixed sampling is kept for experiments, and E7 replaces E4 as the baseline for later comparisons.
+Conclusion: fixed sampling reduced outcome changes between repeats but did not remove them, and PICO pass still varied by 3 between repeats. Completed runs were lower under fixed sampling; strict queries had the same length under both settings (median 20 words), so the cause is not yet known. Fixed sampling is kept for experiments, and E7 replaces E4 as the baseline for later comparisons. Correction (2026-10-02): the zero-results denominator was first hand-counted as 28/45, using PICO passes; batch metrics showed 2 runs (cases 247 and 4499) passed PICO but failed at search on a non-JSON response from NCBI, so 43 runs searched.
