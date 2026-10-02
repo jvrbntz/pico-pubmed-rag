@@ -23,6 +23,8 @@ def make_trace(
     summary_attempts=1,
     shown_pmids=("1111111",),
     candidates=(VALID_CANDIDATE,),
+    search_terms=None,
+    search_terms_failed=False,
 ):
     """Builds a minimal schema-v1 trace with the given outcome."""
     stages = {name: {"status": "skipped", "skip_reason": "not reached"} for name in STAGE_NAMES}
@@ -43,6 +45,11 @@ def make_trace(
 
     succeed("generate_pico_candidates", list(candidates))
     succeed("select_pico", candidates[0])
+    if search_terms_failed:
+        stages["extract_search_terms"] = {"status": "failed", "failure_tag": "validation"}
+        return _trace(case_id, repeat, "failed", stages)
+    if search_terms is not None:
+        succeed("extract_search_terms", search_terms)
     query = "adults with knee osteoarthritis AND total knee replacement"
     succeed("build_search_query", query)
 
@@ -268,3 +275,20 @@ def test_empty_batch_gives_zeros_and_traces_without_repeat_count_as_repeat_one()
     smoke_trace = make_trace(87, outcome="completed")
     del smoke_trace["run_metadata"]["repeat"]
     assert compute_batch_metrics([smoke_trace])["per_repeat"][1]["completed"] == 1
+
+
+def test_query_words_come_from_search_terms_when_present_and_terms_pass_rate_is_reported():
+    long_pico = {**VALID_CANDIDATE, "population": "older adults with severe symptomatic knee osteoarthritis",
+                 "intervention": "total knee replacement surgery"}
+    traces = [
+        make_trace(1, candidates=(long_pico,),
+                   search_terms={"population_terms": "knee osteoarthritis", "intervention_terms": "knee replacement"}),
+        make_trace(2, candidates=(long_pico,)),
+        make_trace(3, candidates=(long_pico,), search_terms_failed=True),
+    ]
+
+    pooled = compute_batch_metrics(traces)["pooled"]
+
+    assert pooled["query_words"]["median"] == 7.5
+    assert pooled["query_words"]["max"] == 11
+    assert pooled["search_terms_pass"] == {"count": 1, "of": 2}

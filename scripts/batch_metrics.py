@@ -33,6 +33,7 @@ def print_metrics(name, metrics):
     print("|---|---|")
     rows = [
         ("PICO pass", fmt(pooled["pico_pass"])),
+        ("Search terms pass (of runs that reached the stage)", fmt(pooled["search_terms_pass"])),
         ("Strict query zero results (of runs that searched)", fmt(pooled["strict_zero"])),
         ("Zero results after broadening (of runs that searched)", fmt(pooled["broadened_zero"])),
         ("Summary first-attempt pass (of runs that reached the summary)", fmt(pooled["summary_first_attempt_pass"])),
@@ -43,7 +44,7 @@ def print_metrics(name, metrics):
         ("Runs with an invalid citation (of runs that cite)", fmt(pooled["runs_with_invalid_citation"])),
         ("Runs citing nothing (of completed)", fmt(pooled["runs_citing_nothing"])),
         ("Leaked example candidates (of candidates)", fmt(pooled["leaked_candidates"])),
-        ("Descriptive queries, over 8 words (of queries)", fmt(pooled["query_words"]["descriptive"])),
+        ("Descriptive queries, over 8 words searched (of queries)", fmt(pooled["query_words"]["descriptive"])),
         ("Query words, median / max", f"{pooled['query_words']['median']} / {pooled['query_words']['max']}"),
     ]
     for label, value in rows:

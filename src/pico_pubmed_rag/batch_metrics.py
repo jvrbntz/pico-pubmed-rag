@@ -60,15 +60,33 @@ def _pooled(traces):
         **_citation_counts(completed),
         "leaked_candidates": _leak_count(traces),
         "query_words": _query_word_counts(traces),
+        "search_terms_pass": _search_terms_pass(traces),
     }
+
+
+def _search_terms_pass(traces):
+    statuses = [
+        t["stages"]["extract_search_terms"]["status"]
+        for t in traces
+        if t["stages"].get("extract_search_terms", {}).get("status") in ("succeeded", "failed")
+    ]
+    return _rate(statuses.count("succeeded"), len(statuses))
+
+
+def _searched_words(trace):
+    terms_record = trace["stages"].get("extract_search_terms")
+    if terms_record and terms_record["status"] == "succeeded":
+        terms = terms_record["output"]
+        return f"{terms['population_terms']} {terms['intervention_terms']}"
+    pico = trace["stages"]["select_pico"]["output"]
+    return f"{pico['population']} {pico['intervention']}"
 
 
 def _query_word_counts(traces):
     word_counts = [
-        len(f"{pico['population']} {pico['intervention']}".split())
+        len(_searched_words(t).split())
         for t in traces
         if _stage_succeeded(t, "build_search_query")
-        for pico in [t["stages"]["select_pico"]["output"]]
     ]
     return {
         "descriptive": _rate(
