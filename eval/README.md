@@ -4,7 +4,7 @@ This directory records how this project is evaluated: the procedure, the gold se
 
 ## Status
 
-Operational metrics have been counted by hand on a 20-case development batch (seed 42), used for error analysis and tuning, not as a test set. There's no gold set yet, so nothing in this repo says how good the PICO extraction, retrieval, or summaries actually are.
+Operational metrics have been counted by hand on a 20-case development batch (seed 42), used for error analysis and tuning, not as a test set. There's no gold set yet, so nothing in this repo says how good the PICO extraction, retrieval, or summaries actually are. Experiment history, with each run's question, setup, and result, is in `experiments.md`.
 
 ## Operational metrics
 
