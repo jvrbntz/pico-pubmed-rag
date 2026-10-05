@@ -233,3 +233,16 @@ def test_paired_comparison_counts_empty_searches_only_among_runs_that_searched()
     assert comparison["cases"][2]["empty_after"] == {"count": 1, "of": 1}
     assert comparison["cases"][2]["verdict"] == "worsened"
     assert comparison["verdicts"]["not comparable"] == 1
+
+
+def test_repetitive_summaries_are_counted():
+    repeated = "No Clear Answer: the abstracts do not address this comparison in this population."
+    traces = [
+        make_trace(1, summary="\n".join([repeated] * 3)),
+        make_trace(2, summary="Evidence Summary: A finding (PMID: 1111111).\nA second, different point."),
+        make_trace(3, outcome="no_evidence"),
+    ]
+
+    pooled = compute_batch_metrics(traces)["pooled"]
+
+    assert pooled["repetitive_summaries"] == {"count": 1, "of": 2}

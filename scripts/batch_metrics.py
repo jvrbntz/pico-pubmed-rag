@@ -40,6 +40,7 @@ def print_metrics(name, metrics):
         ("No Clear Answer (of completed)", fmt(pooled["no_clear_answer"])),
         ("Both labels (of completed)", fmt(pooled["both_labels"])),
         ("Answered (of completed)", fmt(pooled["answered"])),
+        ("Repetitive summaries, a line repeated 3+ times (of completed)", fmt(pooled["repetitive_summaries"])),
         ("Valid cited PMIDs (of cited PMIDs)", fmt(pooled["valid_cited_pmids"])),
         ("Runs with an invalid citation (of runs that cite)", fmt(pooled["runs_with_invalid_citation"])),
         ("Runs citing nothing (of completed)", fmt(pooled["runs_citing_nothing"])),

@@ -4,7 +4,7 @@ import os
 
 import ollama
 
-SAMPLING_OPTIONS = {"temperature": 0, "seed": 42}
+SAMPLING_OPTIONS = {"temperature": 0.3, "seed": 42, "num_ctx": 16384, "num_predict": 4096}
 
 
 def call_llm(prompt, generate=ollama.generate):

@@ -26,8 +26,7 @@ def test_call_llm_sends_fixed_sampling_options(fake_generate, recorded_generate_
 
     call = recorded_generate_calls[0]
     assert call["options"] == SAMPLING_OPTIONS
-    assert call["options"]["temperature"] == 0
-    assert "seed" in call["options"]
+    assert call["options"] == {"temperature": 0.3, "seed": 42, "num_ctx": 16384, "num_predict": 4096}
     assert call["prompt"] == "some prompt"
     assert call["model"] == "test-model"
 

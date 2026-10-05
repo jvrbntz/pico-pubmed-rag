@@ -10,6 +10,8 @@ NO_CLEAR_ANSWER_LABEL = "No Clear Answer:"
 EVIDENCE_SUMMARY_LABEL = "Evidence Summary:"
 PMID_PATTERN = re.compile(r"\b\d{6,9}\b")
 DESCRIPTIVE_QUERY_WORDS = 8
+REPEATED_LINE_MIN_CHARACTERS = 50
+REPEATED_LINE_MIN_COUNT = 3
 
 
 def compute_batch_metrics(traces):
@@ -57,6 +59,7 @@ def _pooled(traces):
             len(completed),
         ),
         "answered": _rate(sum(_answered(t) for t in completed), len(completed)),
+        "repetitive_summaries": _rate(sum(_is_repetitive(s) for s in summaries), len(completed)),
         **_citation_counts(completed),
         "leaked_candidates": _leak_count(traces),
         "query_words": _query_word_counts(traces),
@@ -113,6 +116,11 @@ def _leak_count(traces):
         for candidate in t["stages"]["generate_pico_candidates"]["output"]
     ]
     return _rate(sum(_normalized(c) in examples for c in candidates), len(candidates))
+
+
+def _is_repetitive(summary):
+    lines = [line.strip() for line in summary.splitlines() if len(line.strip()) >= REPEATED_LINE_MIN_CHARACTERS]
+    return any(lines.count(line) >= REPEATED_LINE_MIN_COUNT for line in set(lines))
 
 
 def _citation_counts(completed):
