@@ -157,3 +157,22 @@ Setup: commit `3e15703`, batch `fdf1e0e4`, 3 repeats, fixed sampling, compared a
 | Valid cited PMIDs | 63/63 | 48/48 |
 
 Conclusion: met every threshold set before running, with completed exactly at the bar. Answered summaries rose from 1 to 11. Summary failures rose from 0 to 10: 3 responses ignored the prompt's rules, 2 were reasoning text that never finished, 4 cited no PMID, and 1 had no abstracts left after dropping. A direct check found the cause: Ollama used its default 2,048-token context window and cut prompts from the start, so a failing 18,282-character summary prompt was processed as 2,051 tokens without its instructions. In E9, 49 of 56 summary prompts and 9 of 60 PICO prompts exceeded the window, so most E9 summaries were written without seeing their rules, and long notes have reached PICO generation without its rules in every batch since E1. Next: set the context window explicitly and rerun as E10.
+
+## E10. Full context window and loop-breaking sampling (2026-10-05)
+
+Question: with a 16,384-token context window, temperature 0.3 (seed 42), and a 4,096-token output cap, do summaries stop failing and looping without losing answers?
+
+Setup: commit `3d6d3ad`, batch `b53ac373`, 3 repeats, compared against E9. Thresholds set before running: 0 repetitive summaries; at most 5 summary failures; answered at least 30% of completed; cited PMIDs 100% valid; completed at least 38 of 60; batch at most 45 minutes. Because sampling changed, E10 replaces E9 as the baseline for later comparisons.
+
+| Metric | E9 | E10 |
+|---|---|---|
+| Repetitive summaries | 0/36 | 1/34 |
+| Summary failures | 10 | 3 |
+| Answered per repeat | 4, 4, 3 | 4, 1, 2 |
+| Answered | 11/36 completed | 7/34 completed |
+| Valid cited PMIDs | 48/48 | 83/83 |
+| Completed | 36/60 | 34/60 |
+| PICO failures | 7 (5 duplicates) | 15 (13 duplicates) |
+| Batch time | 27 minutes | 23 minutes |
+
+Conclusion: missed 3 of 6 thresholds (repetitive summaries, answered, completed) and met 3 (summary failures, citation validity, batch time). The summary step improved as intended: failures fell from 10 to 3, the repetitive-summary check caught the one remaining loop, and every citation was valid. The misses come mainly from PICO generation, where duplicate candidates rose from 5 to 13; this batch cannot tell whether the full context window or the higher temperature caused it. The changes in answered and completed are within the run-to-run noise measured in E4 and E7. E10 fixed two correctness problems (truncated prompts and repetition loops) without producing the improvement the thresholds required. Next: decide whether to drop exact duplicate candidates instead of rejecting the response.
