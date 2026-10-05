@@ -380,7 +380,7 @@ def test_fetch_connection_error_fails_without_raising(
         assert trace["stages"][stage_name]["status"] == "skipped"
 
 
-def test_parse_failure_keeps_raw_xml_from_fetch(
+def test_article_without_abstract_is_dropped_and_raw_xml_is_kept(
     dataset_with_case_87,
     valid_pico_llm_call,
     search_call_strict_hits,
@@ -401,13 +401,12 @@ def test_parse_failure_keeps_raw_xml_from_fetch(
     assert fetch_record["status"] == "succeeded"
     assert fetch_record["call_records"][0]["response"] == XML_MISSING_ABSTRACT
 
-    parse_record = trace["stages"]["parse"]
-    assert parse_record["status"] == "failed"
-    assert parse_record["failure_tag"] == "unexpected"
-    assert parse_record["failure_type"] == "AttributeError"
+    assert trace["stages"]["parse"]["status"] == "succeeded"
+    assert trace["stages"]["parse"]["output"] == []
 
-    for stage_name in ["rank", "generate_summary"]:
-        assert trace["stages"][stage_name]["status"] == "skipped"
+    summary_record = trace["stages"]["generate_summary"]
+    assert summary_record["status"] == "failed"
+    assert summary_record["failure_tag"] == "validation"
 
 
 def test_fetch_records_pmids_sent_and_raw_xml(

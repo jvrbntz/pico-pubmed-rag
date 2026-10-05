@@ -199,3 +199,64 @@ def test_efetch_get_raises_configuration_error_without_ncbi_settings(monkeypatch
     monkeypatch.delenv("NCBI_TOOL_NAME", raising=False)
     with pytest.raises(ConfigurationError):
         efetch_get(["1234567"])
+
+
+def pubmed_article_xml(pmid, abstract_xml):
+    return f"""<PubmedArticleSet><PubmedArticle><MedlineCitation>
+      <PMID>{pmid}</PMID>
+      <Article>
+        <ArticleTitle>Title {pmid}</ArticleTitle>
+        {abstract_xml}
+        <PublicationTypeList><PublicationType>Randomized Controlled Trial</PublicationType></PublicationTypeList>
+        <Journal><JournalIssue><PubDate><Year>2021</Year></PubDate></JournalIssue></Journal>
+      </Article>
+    </MedlineCitation></PubmedArticle></PubmedArticleSet>"""
+
+
+def test_parse_pubmed_xml_joins_labeled_sections_in_order():
+    xml_text = pubmed_article_xml("1111111", """<Abstract>
+        <AbstractText Label="BACKGROUND">Knee pain is common.</AbstractText>
+        <AbstractText Label="RESULTS">Pain fell by 40%.</AbstractText>
+        <AbstractText Label="CONCLUSIONS">Replacement helped.</AbstractText>
+    </Abstract>""")
+
+    text = parse_pubmed_xml(xml_text)[0]["text"]
+
+    assert text == "BACKGROUND: Knee pain is common.\nRESULTS: Pain fell by 40%.\nCONCLUSIONS: Replacement helped."
+
+
+def test_parse_pubmed_xml_joins_unlabeled_sections_without_prefixes():
+    xml_text = pubmed_article_xml("2222222", """<Abstract>
+        <AbstractText>First part.</AbstractText>
+        <AbstractText>Second part.</AbstractText>
+    </Abstract>""")
+
+    assert parse_pubmed_xml(xml_text)[0]["text"] == "First part.\nSecond part."
+
+
+def test_parse_pubmed_xml_keeps_text_inside_formatting_tags():
+    xml_text = pubmed_article_xml("3333333", """<Abstract>
+        <AbstractText>Revision <i>hip arthroplasty</i> rates fell below 10<sup>-3</sup> per year.</AbstractText>
+    </Abstract>""")
+
+    assert parse_pubmed_xml(xml_text)[0]["text"] == "Revision hip arthroplasty rates fell below 10-3 per year."
+
+
+def test_parse_pubmed_xml_drops_articles_without_an_abstract():
+    with_abstract = pubmed_article_xml("4444444", "<Abstract><AbstractText>Findings.</AbstractText></Abstract>")
+    without_abstract = pubmed_article_xml("5555555", "")
+    xml_text = with_abstract.replace(
+        "</PubmedArticleSet>", without_abstract.replace("<PubmedArticleSet>", "")
+    )
+
+    records = parse_pubmed_xml(xml_text)
+
+    assert [record["pmid"] for record in records] == ["4444444"]
+
+
+def test_parse_pubmed_xml_takes_the_year_from_a_medline_date_range():
+    xml_text = pubmed_article_xml(
+        "6666666", "<Abstract><AbstractText>Findings.</AbstractText></Abstract>"
+    ).replace("<PubDate><Year>2021</Year></PubDate>", "<PubDate><MedlineDate>2025 May-Jun 01</MedlineDate></PubDate>")
+
+    assert parse_pubmed_xml(xml_text)[0]["publication_date"] == "2025"

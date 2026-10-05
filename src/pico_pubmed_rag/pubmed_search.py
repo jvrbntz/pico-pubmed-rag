@@ -1,6 +1,7 @@
 """Builds a PubMed query from a selected PICO, searches and fetches through NCBI E-utilities with zero-result broadening, and parses fetched records into abstracts."""
 
 import os
+import re
 import xml.etree.ElementTree as ET
 
 import requests
@@ -38,20 +39,39 @@ def fetch_abstracts(pmids, http_get):
     return response
 
 
+def _abstract_text(article):
+    sections = []
+    for section in article.findall(".//AbstractText"):
+        label = section.get("Label")
+        text = "".join(section.itertext()).strip()
+        sections.append(f"{label}: {text}" if label else text)
+    return "\n".join(sections)
+
+
+def _publication_year(article):
+    year = article.find(".//PubDate/Year")
+    if year is not None:
+        return year.text
+    return re.search(r"\d{4}", article.find(".//PubDate/MedlineDate").text).group()
+
+
 def parse_pubmed_xml(xml_text):
     root = ET.fromstring(xml_text)
     records = []
 
     for article in root.findall(".//PubmedArticle"):
+        text = _abstract_text(article)
+        if not text:
+            continue
         records.append(
             {
                 "pmid": article.find(".//PMID").text,
                 "title": article.find(".//ArticleTitle").text,
-                "text": article.find(".//AbstractText").text,
+                "text": text,
                 "publication_type": [
                     pt.text for pt in article.findall(".//PublicationType")
                 ],
-                "publication_date": article.find(".//PubDate/Year").text,
+                "publication_date": _publication_year(article),
             }
         )
     return records
