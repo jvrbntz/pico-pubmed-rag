@@ -53,6 +53,7 @@ Latency, case-in to summary-out, is logged per run but not scored against a thre
 | 2 | PubMed search translation, retrieval, and parsing (MeSH mapping, Boolean structure, zero-result broadening, esearch/efetch, abstract parsing) | done |
 | 3 | Ranking + evidence-summary generation (walking skeleton complete once this lands) | done |
 | 4 | Eval harness (gold set, PICO-extraction / retrieval-relevance / faithfulness scoring, latency logging) | in progress |
+| 5 | Embeddings re-ranking (lexical vs hybrid, measured on the gold set) and results write-up | not started |
 
 Acceptance criteria per phase are written before that phase's code, and enforced as tests. See `CLAUDE.md`'s Build workflow section.
 
