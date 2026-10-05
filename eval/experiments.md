@@ -139,3 +139,21 @@ Setup: commit `0970700`, batch `c198c7aa`, 3 repeats, fixed sampling, compared c
 Paired by case, with empty searches counted out of runs that searched: improved 11, worsened 0, unchanged 5, not comparable 4.
 
 Conclusion: met every threshold set before running (search terms pass 91% against at least 90%; 11 improved and 0 worsened against at least 8 and at most 2; zero results 4% against at most 50%; PICO pass within 3 of E7). Empty searches fell from 65% to 4% of searches, and completed runs tripled. The bottleneck has moved to the summary step: 41 of 42 completed summaries declined to answer, 40 of them carrying both labels. 4 runs failed at parsing, a failure that was rare while few runs reached it.
+
+## E9. Complete abstracts (2026-10-05)
+
+Question: with abstracts parsed from all their sections, do summaries answer more often?
+
+Setup: commit `3e15703`, batch `fdf1e0e4`, 3 repeats, fixed sampling, compared against E8b. Thresholds set before running: answered at least 10% of completed; 0 parse failures and median abstract shown at least 1,500 characters; completed at least 36 of 60; cited PMIDs 100% valid. Abstract length was computed from the traces directly, since batch metrics does not report it.
+
+| Metric | E8b | E9 |
+|---|---|---|
+| Answered | 1/42 completed | 11/36 completed |
+| No Clear Answer | 41/42 | 25/36 |
+| Median abstract shown, characters | about 350 | 2,058 |
+| Parse failures | 4 | 0 |
+| Completed | 42/60 | 36/60 |
+| Summary failures | 0 | 10 |
+| Valid cited PMIDs | 63/63 | 48/48 |
+
+Conclusion: met every threshold set before running, with completed exactly at the bar. Answered summaries rose from 1 to 11. Summary failures rose from 0 to 10: 3 responses ignored the prompt's rules, 2 were reasoning text that never finished, 4 cited no PMID, and 1 had no abstracts left after dropping. A direct check found the cause: Ollama used its default 2,048-token context window and cut prompts from the start, so a failing 18,282-character summary prompt was processed as 2,051 tokens without its instructions. In E9, 49 of 56 summary prompts and 9 of 60 PICO prompts exceeded the window, so most E9 summaries were written without seeing their rules, and long notes have reached PICO generation without its rules in every batch since E1. Next: set the context window explicitly and rerun as E10.
