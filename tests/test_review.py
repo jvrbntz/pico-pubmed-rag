@@ -124,3 +124,13 @@ def test_progress_counts_and_unannotated_filter(tmp_path):
 
     assert review_progress(queue, annotations) == {"annotated": 2, "deferred": 1, "unannotated": 2}
     assert [t["case_id"] for t in unannotated_runs(queue, annotations)] == [4, 5]
+
+
+def test_run_view_includes_raw_model_responses_by_stage():
+    trace = make_trace(87, summary_attempts=2, summary="Evidence Summary: A finding (PMID: 1111111).")
+    trace["stages"]["generate_pico_candidates"]["call_records"] = [{"prompt": "...", "response": "raw PICO text"}]
+
+    view = build_run_view(trace)
+
+    assert view["raw_responses"]["generate_pico_candidates"] == ["raw PICO text"]
+    assert len(view["raw_responses"]["generate_summary"]) == 2

@@ -1,0 +1,6 @@
+# The review app shows case note text, so it listens only on this machine.
+[server]
+address = "localhost"
+
+[browser]
+gatherUsageStats = false

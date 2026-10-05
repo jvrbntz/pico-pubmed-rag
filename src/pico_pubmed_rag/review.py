@@ -50,6 +50,14 @@ def build_run_view(trace):
         ),
         "cited_pmids": cited,
         "unshown_cited_pmids": [pmid for pmid in cited if pmid not in shown],
+        "raw_responses": {
+            name: [record.get("response", record.get("error")) for record in record_list]
+            for name, record_list in (
+                (name, stages.get(name, {}).get("call_records", []))
+                for name in ("generate_pico_candidates", "extract_search_terms", "generate_summary")
+            )
+            if record_list
+        },
     }
 
 
