@@ -196,6 +196,21 @@ Setup: commit `641e440`, batch `746ca8c8`, 3 repeats, compared against E10. Thre
 
 Conclusion: met all 5 thresholds. The 4 cases that failed on duplicates in E10 (220, 848, 3480, 4964) completed 9 of 12 runs; the other 16 cases were unchanged. Answered held at about 20% of completed, so more runs complete without the summaries answering more often. The remaining PICO failures are both "Extra data" JSON errors. Search terms are now the largest failure stage, mostly terms that list several concepts joined by commas or AND. E11 is the new baseline.
 
+## E12. PubMed Best Match order (2026-10-08)
+
+Question: does requesting PubMed's Best Match order instead of the most-recent default bring more relevant abstracts into the top 5?
+
+Setup: commit `0a8dadd`, batch `5ff6d6c1`, 3 repeats, compared against E11. Thresholds set before running: relevant abstracts in the top 5, judged blind on 10 cases, at least 10 more than E11 out of 50; abstracts published in 2026 at most 25%; completed at least 40 of 60; at most 5 summary failures; cited PMIDs 100% valid.
+
+| Metric | E11 | E12 |
+|---|---|---|
+| Abstracts published in 2026 | 106/213 | 16/212 |
+| Completed | 45/60 | 43/60 |
+| Summary failures | 3 | 5 |
+| Valid cited PMIDs | 90/90 | 67/68 |
+
+Conclusion: met the mechanism, completed, and summary-failure thresholds; missed citation validity, from one PMID cut off mid-number when a repetition loop reached the output cap. The relevance check was not run: reviewing runs showed the PICO questions were too generic for their cases, so judging relevance against them would measure the wrong question. 49 of 60 runs used the same search terms in both batches, and most shared 0 to 2 of their 5 PMIDs, so the sort order changed which abstracts the model saw. Next: ground the PICO prompt in published guidance.
+
 ## E13. PICO rules from GRADE and Cochrane (2026-10-08)
 
 Question: does a PICO prompt grounded in GRADE and Cochrane guidance (decision first, comparator always given, outcomes important to patients, and a procedure-note example) make PICOs more specific without losing runs?
@@ -212,3 +227,20 @@ Setup: commit `9ed442b`, batch `c618e234`, 3 repeats, compared against E12. Thre
 | Valid cited PMIDs | 67/68 | 52/52 |
 
 Conclusion: met the two PICO-quality thresholds and citation validity; missed PICO failures and completed. Every PICO response now includes reasoning before the answer, and 11 failures came from draft JSON in that reasoning, which a replay recovers by parsing only after the reasoning marker. Six responses looped in reasoning until the output cap, one on the prompt's own example. More specific populations also exceeded the 4-word search-term limit more often. Next: parse PICO responses after the reasoning marker.
+
+## E14. Parse PICO after the reasoning marker (2026-10-08)
+
+Question: does parsing only the text after the reasoning marker recover the PICO runs E13 lost to draft JSON in the model's reasoning?
+
+Setup: commit `985cb05`, batch `0632dda1`, 3 repeats, compared against E13. Thresholds set before running: PICO failures at most 13; completed at least 30 of 60; selected PICOs with no comparison at most 8; procedure-finding outcomes at most 8. A replay of E13's saved PICO responses predicted 11 recovered.
+
+| Metric | E12 | E13 | E14 |
+|---|---|---|---|
+| PICO failures | 2 | 22 | 10 (5 reasoning loops, 5 no clinical decision) |
+| No comparison | 44/58 | 2/38 | 2/50 |
+| Outcome is a procedure finding | 16/58 | 2/38 | 2/50 |
+| Search terms failures | 9 | 13 | 11 |
+| Completed | 43/60 | 21/60 | 35/60 |
+| Valid cited PMIDs | 67/68 | 52/52 | 69/70 |
+
+Conclusion: met all 4 thresholds. The sourced PICO rules held at the larger sample, and no draft-JSON failures remain. Completed is still below E12, mainly from search terms that exceed the 4-word limit now that populations are more specific, and from reasoning loops. One summary cited a PMID with scrambled digits (32973102 for 29573102). E14 is the new baseline.

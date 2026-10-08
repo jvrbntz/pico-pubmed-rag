@@ -24,6 +24,9 @@ Computed from run traces. No hand labels needed, only a fixed sample of cases. B
 | Descriptive queries | Searches phrased as descriptions | Queries whose population and intervention exceed 8 words, over queries built |
 | Repetitive summaries | Summaries stuck repeating themselves | Completed summaries where a line of 50 or more characters appears 3 or more times, over completed runs |
 | Duplicates dropped | PICO responses that repeated a question | Runs whose raw PICO response held more candidates than the step kept, over PICO passes |
+| No comparison | Selected PICOs with no comparator | Selected PICOs whose comparison is empty, over runs where a PICO was selected |
+| Procedure-finding outcomes | Outcomes that describe the procedure, not the patient | Selected PICOs whose outcome contains "finding", "successful", "completion", or "status", over runs where a PICO was selected |
+| No clinical decision | Notes the model reports as having no decision to search | PICO failures with that message, over all runs |
 
 ## Quality metrics
 
