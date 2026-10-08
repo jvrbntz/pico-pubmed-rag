@@ -1,10 +1,11 @@
 """Shared pipeline fakes and fixed responses for tests that run the pipeline on fakes."""
 
 VALID_PICO_RESPONSE = (
-    '[{"population": "adults with type 2 diabetes", "intervention": "metformin", '
+    '{"clinical_decision": "Metformin chosen as first-line therapy for type 2 diabetes.", '
+    '"candidates": [{"population": "adults with type 2 diabetes", "intervention": "metformin", '
     '"comparison": "sulfonylurea", "outcome": "HbA1c reduction"}, '
     '{"population": "adults with type 2 diabetes", "intervention": "lifestyle modification", '
-    '"comparison": "metformin", "outcome": "weight loss"}]'
+    '"comparison": "metformin", "outcome": "weight loss"}]}'
 )
 
 VALID_SEARCH_TERMS_RESPONSE = (

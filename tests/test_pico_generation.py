@@ -4,13 +4,19 @@ import json
 
 import pytest
 
-from pico_pubmed_rag.pico_generation import build_prompt, generate_pico_candidates
+from pico_pubmed_rag.pico_generation import EXAMPLE_CANDIDATES, build_prompt, generate_pico_candidates
+
+EXAMPLE_DECISION = "Elective repair chosen for a symptomatic condition."
+
+
+def pico_response(candidates, decision=EXAMPLE_DECISION):
+    return json.dumps({"clinical_decision": decision, "candidates": candidates})
 
 
 @pytest.fixture
 def fake_llm_call():
     def _fake_llm_call(prompt):
-        return json.dumps(
+        return pico_response(
             [
                 {
                     "population": "adult patients with strep throat",
@@ -33,7 +39,7 @@ def fake_llm_call():
 @pytest.fixture
 def different_comparison_llm_call():
     def _different_comparison_llm_call(prompt):
-        return json.dumps(
+        return pico_response(
             [
                 {
                     "population": "adult patients with strep throat",
@@ -56,7 +62,7 @@ def different_comparison_llm_call():
 @pytest.fixture
 def out_of_bounds_llm_call():
     def _out_of_bounds_llm_call(prompt):
-        return json.dumps(
+        return pico_response(
             [
                 {
                     "population": "p1",
@@ -117,7 +123,7 @@ def malformed_json_llm_call():
 @pytest.fixture
 def wrong_keys_llm_call():
     def _wrong_keys_llm_call(prompt):
-        return json.dumps(
+        return pico_response(
             [
                 {
                     "population": "adult patients with strep throat",
@@ -142,7 +148,7 @@ def noisy_response_llm_call():
         return (
             "Here's my resoning about this case...\n"
             "```json\n"
-            + json.dumps(
+            + pico_response(
                 [
                     {
                         "population": "p1",
@@ -167,7 +173,7 @@ def noisy_response_llm_call():
 @pytest.fixture
 def null_comparison_llm_call():
     def _null_comparison_llm_call(prompt):
-        return json.dumps(
+        return pico_response(
             [
                 {
                     "population": "adult patients with strep throat",
@@ -257,7 +263,7 @@ def test_generate_pico_candidates_accepts_null_comparison(null_comparison_llm_ca
 @pytest.fixture
 def single_candidate_llm_call():
     def _single_candidate_llm_call(prompt):
-        return json.dumps(
+        return pico_response(
             [
                 {
                     "population": "adults with prostate cancer",
@@ -280,7 +286,7 @@ def test_generate_pico_candidates_accepts_one_candidate(single_candidate_llm_cal
 @pytest.fixture
 def five_candidates_llm_call():
     def _five_candidates_llm_call(prompt):
-        return json.dumps(
+        return pico_response(
             [
                 {
                     "population": f"population {n}",
@@ -297,7 +303,7 @@ def five_candidates_llm_call():
 
 def test_generate_pico_candidates_raises_on_zero_candidates():
     with pytest.raises(ValueError):
-        generate_pico_candidates("case text", lambda prompt: "[]")
+        generate_pico_candidates("case text", lambda prompt: pico_response([]))
 
 
 def test_generate_pico_candidates_raises_on_five_candidates(five_candidates_llm_call):
@@ -315,7 +321,7 @@ PACEMAKER_CANDIDATE = {
 
 def test_generate_pico_candidates_drops_candidate_differing_only_in_outcome():
     other_question = {**PACEMAKER_CANDIDATE, "intervention": "temporary pacing"}
-    response = json.dumps(
+    response = pico_response(
         [
             PACEMAKER_CANDIDATE,
             other_question,
@@ -329,7 +335,7 @@ def test_generate_pico_candidates_drops_candidate_differing_only_in_outcome():
 
 
 def test_generate_pico_candidates_drops_exact_copies():
-    response = json.dumps([PACEMAKER_CANDIDATE, PACEMAKER_CANDIDATE])
+    response = pico_response([PACEMAKER_CANDIDATE, PACEMAKER_CANDIDATE])
 
     result = generate_pico_candidates("case text", lambda prompt: response)
 
@@ -338,7 +344,7 @@ def test_generate_pico_candidates_drops_exact_copies():
 
 def test_generate_pico_candidates_treats_null_string_and_null_comparison_as_duplicates():
     no_comparison = {**PACEMAKER_CANDIDATE, "comparison": None}
-    response = json.dumps(
+    response = pico_response(
         [no_comparison, {**no_comparison, "comparison": "null", "outcome": "all-cause mortality"}]
     )
 
@@ -353,7 +359,7 @@ def _numbered_candidates(count):
 
 def test_generate_pico_candidates_counts_candidates_after_dropping_duplicates():
     distinct = _numbered_candidates(4)
-    response = json.dumps(distinct + [distinct[0]])
+    response = pico_response(distinct + [distinct[0]])
 
     result = generate_pico_candidates("case text", lambda prompt: response)
 
@@ -362,21 +368,21 @@ def test_generate_pico_candidates_counts_candidates_after_dropping_duplicates():
 
 def test_generate_pico_candidates_raises_on_five_distinct_after_dropping_duplicates():
     distinct = _numbered_candidates(5)
-    response = json.dumps(distinct + [distinct[0]])
+    response = pico_response(distinct + [distinct[0]])
 
     with pytest.raises(ValueError):
         generate_pico_candidates("case text", lambda prompt: response)
 
 
 def test_generate_pico_candidates_raises_on_null_outcome():
-    response = json.dumps([{**PACEMAKER_CANDIDATE, "outcome": None}])
+    response = pico_response([{**PACEMAKER_CANDIDATE, "outcome": None}])
 
     with pytest.raises(ValueError):
         generate_pico_candidates("case text", lambda prompt: response)
 
 
 def test_generate_pico_candidates_raises_on_empty_population():
-    response = json.dumps([{**PACEMAKER_CANDIDATE, "population": ""}])
+    response = pico_response([{**PACEMAKER_CANDIDATE, "population": ""}])
 
     with pytest.raises(ValueError):
         generate_pico_candidates("case text", lambda prompt: response)
@@ -396,17 +402,65 @@ def test_build_prompt_asks_for_searchable_population_without_patient_details():
         assert phrase in result
 
 
-def test_build_prompt_allows_null_comparison():
+def test_build_prompt_carries_sourced_pico_rules():
     result = build_prompt("case text")
 
-    assert "If the note states no alternative, use null" in result
-    assert "Do not invent one" in result
+    for phrase in [
+        "main clinical decision",
+        "the condition, not the procedure",
+        "usual care",
+        "no intervention",
+        "important to patients",
+        "If the note contains no clinical decision",
+    ]:
+        assert phrase in result
+    assert "If the note states no alternative, use null" not in result
 
 
 @pytest.mark.parametrize("null_text", ["null", " NULL "])
 def test_generate_pico_candidates_treats_null_string_comparison_as_none(null_text):
-    response = json.dumps([{**PACEMAKER_CANDIDATE, "comparison": null_text}])
+    response = pico_response([{**PACEMAKER_CANDIDATE, "comparison": null_text}])
 
     result = generate_pico_candidates("case text", lambda prompt: response)
 
     assert result[0]["comparison"] is None
+
+
+def test_build_prompt_example_is_a_procedure_note_with_comparator():
+    result = build_prompt("case text")
+
+    assert "cholecystectomy" in result
+    assert "strep" not in result.lower()
+    assert all(candidate["comparison"] for candidate in EXAMPLE_CANDIDATES)
+
+
+def test_generate_pico_candidates_reads_candidates_from_decision_object():
+    response = pico_response([PACEMAKER_CANDIDATE], decision="Pacemaker chosen for symptomatic bradycardia.")
+
+    assert generate_pico_candidates("case text", lambda prompt: response) == [PACEMAKER_CANDIDATE]
+
+
+def test_generate_pico_candidates_rejects_bare_list():
+    response = json.dumps([PACEMAKER_CANDIDATE])
+
+    with pytest.raises(ValueError):
+        generate_pico_candidates("case text", lambda prompt: response)
+
+
+def test_build_prompt_asks_for_decision_object():
+    result = build_prompt("case text")
+
+    assert '"clinical_decision"' in result
+    assert '"candidates"' in result
+
+
+@pytest.mark.parametrize("decision", [None, "", "  "])
+def test_generate_pico_candidates_raises_distinct_error_without_clinical_decision(decision):
+    response = pico_response([], decision=decision)
+
+    with pytest.raises(ValueError, match="No clinical decision in the note"):
+        generate_pico_candidates("case text", lambda prompt: response)
+
+
+def test_build_prompt_says_how_to_report_no_clinical_decision():
+    assert 'set "clinical_decision" to null and "candidates" to an empty list' in build_prompt("case text")

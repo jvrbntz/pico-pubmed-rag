@@ -117,7 +117,7 @@ def test_citation_validity_compares_cited_pmids_with_abstracts_shown():
 
 def test_leak_count_matches_example_candidates_on_all_four_fields():
     leaked = {key: f"  {value.upper()} " for key, value in EXAMPLE_CANDIDATES[0].items()}
-    one_field_differs = {**EXAMPLE_CANDIDATES[1], "outcome": "length of stay"}
+    one_field_differs = {**EXAMPLE_CANDIDATES[0], "outcome": "length of stay"}
     traces = [
         make_trace(1, candidates=(leaked, VALID_CANDIDATE)),
         make_trace(2, candidates=(one_field_differs,)),
@@ -261,3 +261,38 @@ def test_runs_with_dropped_pico_duplicates_are_counted():
     pooled = compute_batch_metrics(traces)["pooled"]
 
     assert pooled["pico_duplicates_dropped"] == {"count": 1, "of": 2}
+
+
+def test_selected_pico_checks_are_counted():
+    clean = {**VALID_CANDIDATE, "comparison": "physiotherapy"}
+    no_comparison = {**VALID_CANDIDATE, "comparison": None}
+    finding_outcome = {**clean, "outcome": "Successful completion of the procedure"}
+    echoes_intervention = {**clean, "outcome": "knee replacement durability"}
+    overlap = {**clean, "population": "umbilical hernia", "intervention": "umbilical hernia repair"}
+    traces = [
+        make_trace(1, candidates=(clean,)),
+        make_trace(2, candidates=(no_comparison,)),
+        make_trace(3, candidates=(finding_outcome,)),
+        make_trace(4, candidates=(echoes_intervention,)),
+        make_trace(5, candidates=(overlap,)),
+        make_trace(6, outcome="failed", failed_stage="generate_pico_candidates"),
+    ]
+
+    pooled = compute_batch_metrics(traces)["pooled"]
+
+    assert pooled["pico_comparison_empty"] == {"count": 1, "of": 5}
+    assert pooled["pico_outcome_is_procedure_finding"] == {"count": 1, "of": 5}
+    assert "pico_population_overlaps_intervention" not in pooled
+
+
+def test_no_clinical_decision_failures_are_counted():
+    no_decision = make_trace(1, outcome="failed", failed_stage="generate_pico_candidates")
+    no_decision["stages"]["generate_pico_candidates"]["traceback"] = (
+        "Traceback (most recent call last):\nValueError: No clinical decision in the note\n"
+    )
+    other_failure = make_trace(2, outcome="failed", failed_stage="generate_pico_candidates")
+    other_failure["stages"]["generate_pico_candidates"]["traceback"] = "ValueError: LLM response was not valid JSON\n"
+
+    pooled = compute_batch_metrics([no_decision, other_failure, make_trace(3)])["pooled"]
+
+    assert pooled["pico_no_clinical_decision"] == {"count": 1, "of": 3}

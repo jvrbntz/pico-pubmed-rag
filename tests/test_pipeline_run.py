@@ -66,10 +66,11 @@ def pico_response_not_json_llm_call():
 def pico_response_missing_outcome_llm_call():
     def _model_call(prompt):
         return (
-            '[{"population": "adults with strep throat", "intervention": "amoxicillin", '
+            '{"clinical_decision": "Antibiotic chosen for strep throat.", "candidates": ['
+            '{"population": "adults with strep throat", "intervention": "amoxicillin", '
             '"comparison": "penicillin"}, '
             '{"population": "adults with strep throat", "intervention": "watchful waiting", '
-            '"comparison": "amoxicillin", "outcome": "complication rate"}]'
+            '"comparison": "amoxicillin", "outcome": "complication rate"}]}'
         )
 
     return _model_call
@@ -80,12 +81,7 @@ def valid_pico_llm_call():
     def _model_call(prompt):
         if "medical librarian" in prompt:
             return VALID_SEARCH_TERMS_RESPONSE
-        return (
-            '[{"population": "adults with type 2 diabetes", "intervention": "metformin", '
-            '"comparison": "sulfonylurea", "outcome": "HbA1c reduction"}, '
-            '{"population": "adults with type 2 diabetes", "intervention": "lifestyle modification", '
-            '"comparison": "metformin", "outcome": "weight loss"}]'
-        )
+        return VALID_PICO_RESPONSE
 
     return _model_call
 

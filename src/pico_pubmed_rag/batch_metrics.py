@@ -5,7 +5,11 @@ import re
 from collections import defaultdict
 from statistics import median
 
-from pico_pubmed_rag.pico_generation import EXAMPLE_CANDIDATES, _extract_json_array
+from pico_pubmed_rag.pico_generation import (
+    EXAMPLE_CANDIDATES,
+    NO_CLINICAL_DECISION_MESSAGE,
+    _extract_json_array,
+)
 
 NO_CLEAR_ANSWER_LABEL = "No Clear Answer:"
 EVIDENCE_SUMMARY_LABEL = "Evidence Summary:"
@@ -13,6 +17,7 @@ PMID_PATTERN = re.compile(r"\b\d{6,9}\b")
 DESCRIPTIVE_QUERY_WORDS = 8
 REPEATED_LINE_MIN_CHARACTERS = 50
 REPEATED_LINE_MIN_COUNT = 3
+PROCEDURE_FINDING_WORDS = ("finding", "successful", "completion", "status")
 
 
 def compute_batch_metrics(traces):
@@ -64,6 +69,8 @@ def _pooled(traces):
         **_citation_counts(completed),
         "leaked_candidates": _leak_count(traces),
         "pico_duplicates_dropped": _duplicates_dropped(traces),
+        **_selected_pico_checks(traces),
+        "pico_no_clinical_decision": _rate(sum(_no_clinical_decision(t) for t in traces), len(traces)),
         "query_words": _query_word_counts(traces),
         "search_terms_pass": _search_terms_pass(traces),
     }
@@ -118,6 +125,28 @@ def _leak_count(traces):
         for candidate in t["stages"]["generate_pico_candidates"]["output"]
     ]
     return _rate(sum(_normalized(c) in examples for c in candidates), len(candidates))
+
+
+def _selected_pico_checks(traces):
+    picos = [t["stages"]["select_pico"]["output"] for t in traces if _stage_succeeded(t, "select_pico")]
+    return {
+        "pico_comparison_empty": _rate(
+            sum(not (p["comparison"] or "").strip() for p in picos), len(picos)
+        ),
+        "pico_outcome_is_procedure_finding": _rate(
+            sum(_outcome_is_procedure_finding(p) for p in picos), len(picos)
+        ),
+    }
+
+
+def _no_clinical_decision(trace):
+    traceback = trace["stages"]["generate_pico_candidates"].get("traceback") or ""
+    return NO_CLINICAL_DECISION_MESSAGE in traceback
+
+
+def _outcome_is_procedure_finding(pico):
+    outcome = pico["outcome"].lower()
+    return any(word in outcome for word in PROCEDURE_FINDING_WORDS)
 
 
 def _duplicates_dropped(traces):

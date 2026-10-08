@@ -46,6 +46,9 @@ def print_metrics(name, metrics):
         ("Runs citing nothing (of completed)", fmt(pooled["runs_citing_nothing"])),
         ("Leaked example candidates (of candidates)", fmt(pooled["leaked_candidates"])),
         ("PICO responses with duplicates dropped (of PICO passes)", fmt(pooled["pico_duplicates_dropped"])),
+        ("Selected PICO with no comparison (of selected)", fmt(pooled["pico_comparison_empty"])),
+        ("Selected PICO outcome is a procedure finding (of selected)", fmt(pooled["pico_outcome_is_procedure_finding"])),
+        ("PICO failures with no clinical decision (of runs)", fmt(pooled["pico_no_clinical_decision"])),
         ("Descriptive queries, over 8 words searched (of queries)", fmt(pooled["query_words"]["descriptive"])),
         ("Query words, median / max", f"{pooled['query_words']['median']} / {pooled['query_words']['max']}"),
     ]
