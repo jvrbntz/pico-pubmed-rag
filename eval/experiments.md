@@ -176,3 +176,22 @@ Setup: commit `3d6d3ad`, batch `b53ac373`, 3 repeats, compared against E9. Thres
 | Batch time | 27 minutes | 23 minutes |
 
 Conclusion: missed 3 of 6 thresholds (repetitive summaries, answered, completed) and met 3 (summary failures, citation validity, batch time). The summary step improved as intended: failures fell from 10 to 3, the repetitive-summary check caught the one remaining loop, and every citation was valid. The misses come mainly from PICO generation, where duplicate candidates rose from 5 to 13; this batch cannot tell whether the full context window or the higher temperature caused it. The changes in answered and completed are within the run-to-run noise measured in E4 and E7. E10 fixed two correctness problems (truncated prompts and repetition loops) without producing the improvement the thresholds required. Next: decide whether to drop exact duplicate candidates instead of rejecting the response.
+
+
+## E11. Drop duplicate PICO candidates (2026-10-08)
+
+Question: does dropping PICO candidates that repeat the same population, intervention, and comparison recover the runs E10 lost to duplicates, without hurting later stages?
+
+Setup: commit `641e440`, batch `746ca8c8`, 3 repeats, compared against E10. Thresholds set before running: 0 duplicate PICO failures; at most 3 PICO failures; completed at least 40 of 60; at most 5 summary failures; cited PMIDs 100% valid. A replay of E10's 60 saved PICO responses through the new code predicted all 13 duplicate failures would pass and no passing response would fail.
+
+| Metric | E10 | E11 |
+|---|---|---|
+| PICO failures | 15 (13 duplicates) | 2 (0 duplicates) |
+| Duplicates dropped | 0/45 | 13/58 |
+| Completed | 34/60 | 45/60 |
+| Answered | 7/34 completed | 9/45 completed |
+| Summary failures | 3 | 3 |
+| Valid cited PMIDs | 83/83 | 90/90 |
+| Search terms failures | 7 | 9 |
+
+Conclusion: met all 5 thresholds. The 4 cases that failed on duplicates in E10 (220, 848, 3480, 4964) completed 9 of 12 runs; the other 16 cases were unchanged. Answered held at about 20% of completed, so more runs complete without the summaries answering more often. The remaining PICO failures are both "Extra data" JSON errors. Search terms are now the largest failure stage, mostly terms that list several concepts joined by commas or AND. E11 is the new baseline.
