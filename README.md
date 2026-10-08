@@ -57,6 +57,20 @@ Latency, case-in to summary-out, is logged per run but not scored against a thre
 
 Acceptance criteria per phase are written before that phase's code, and enforced as tests. See `CLAUDE.md`'s Build workflow section.
 
+## Results
+
+All numbers come from the last development batch (E14, 2026-10-08): 20 MTSamples cases drawn with seed 42, run 3 times each, 60 runs in total. These cases were used to find and fix failures, so the numbers describe the development set, not held-out performance. `eval/experiments.md` records how each number was reached, across 14 experiments.
+
+35 of 60 runs completed with a summary, and none ended with an empty search. 25 failed: 10 at PICO generation, 11 at search-term extraction, and 4 at summary validation.
+
+**PICO generation.** 50 of 60 responses passed validation. Rules taken from GRADE and Cochrane guidance cut selected PICOs with no comparison from 44 of 58 to 2 of 50, and outcomes that describe the procedure instead of the patient from 16 of 58 to 2 of 50. Of the 10 failures, 5 were notes the model reported as having no clinical decision, and 5 were reasoning loops that reached the output cap.
+
+**Search.** Requesting PubMed's Best Match order cut the share of abstracts published in the current year from 50% to 8%. 3 of 39 strict queries returned nothing, and broadening recovered all 3. Search-term extraction is now the largest failure point, because more specific populations often exceed the 4-word limit.
+
+**Summary.** 32 of 39 summaries passed validation on the first attempt. 69 of 70 cited PMIDs were among the abstracts shown; the exception had scrambled digits. 28 of 35 completed summaries declined with No Clear Answer. In an earlier batch, at least 4 of 9 summaries that did not decline answered a different question than the PICO. Reading completed runs also found failures every automated check passed: sentences copied from abstracts, a correct PMID attached to the wrong claim, and declines based on comparisons the PICO never asked about. See Known limitations.
+
+**Not measured.** There's no gold set, so PICO quality against a reference, retrieval relevance, and faithfulness are not scored. The numbers above are operational counts, not measures of clinical correctness.
+
 ## Data
 
 Clinical cases come from [MTSamples](https://mtsamples.com) (educational use, with attribution), a de-identified collection of transcribed medical notes. This project pulls the dataset via kagglehub from a Kaggle mirror (tboyle10/medicaltranscriptions, labeled CC0) that scraped mtsamples.com. Field names follow a non-PHI-shaped convention (`case_id`, not `patient_id`) regardless, and no case is modified to inject or simulate real patient identifiers.
@@ -77,7 +91,9 @@ Requires Python 3.11+; `uv` will provision it if your system interpreter is olde
 
 ## Running it
 
-`uv run python scripts/try_full_pipeline.py` runs one MTSamples case through the full pipeline against the local model and live PubMed, prints its trace (each stage's status, service, and latency, the search queries sent, and the summary), and appends it to `runs/smoke_runs.jsonl`. `uv run python scripts/run_batch.py --size 20 --seed 42` runs a seeded sample of cases and saves every trace to a timestamped file in `runs/`, logging progress as it goes. `scripts/export_review_sheet.py` turns a batch file's runs into a CSV sheet for error analysis. `uv run python scripts/batch_metrics.py <batch file> --baseline <batch file>` reports a batch's metrics and compares it with a baseline case by case. `uv run streamlit run scripts/relevance_app.py -- <sheet.csv>` shows a relevance sheet one abstract at a time and saves a yes or no label per case and PMID. `uv run pytest` runs the test suite, which uses fakes and needs neither Ollama nor network access.
+`uv run python scripts/try_full_pipeline.py` runs one MTSamples case through the full pipeline against the local model and live PubMed, prints its trace (each stage's status, service, and latency, the search queries sent, and the summary), and appends it to `runs/smoke_runs.jsonl`. `uv run python scripts/run_batch.py --size 20 --seed 42 --repeats 3` runs a seeded sample of cases and saves every trace to a timestamped file in `runs/`, logging progress as it goes. `uv run python scripts/batch_metrics.py <batch file> --baseline <batch file>` reports a batch's metrics and compares it with a baseline case by case. `uv run streamlit run scripts/review_app.py -- <batch file> --outcome completed` shows a batch's runs one at a time, with the note, PICO, search, abstracts, and summary, and saves a reviewer's notes for error analysis. `uv run pytest` runs the test suite, which uses fakes and needs neither Ollama nor network access.
+
+Four scripts are one-time checks, kept as a record of how earlier decisions were tested: `try_pico_generation.py` (PICO generation on real cases), `try_pubmed_search.py` (live NCBI search, fetch, and parse), `try_summary_reliability.py` (how often summaries cite correctly on the first attempt), and `export_review_sheet.py` (the CSV sheet used for the first error analysis, before the review app).
 
 ## Known limitations
 
