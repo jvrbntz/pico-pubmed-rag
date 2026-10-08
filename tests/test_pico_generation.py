@@ -313,17 +313,56 @@ PACEMAKER_CANDIDATE = {
 }
 
 
-def test_generate_pico_candidates_raises_when_only_outcome_differs():
+def test_generate_pico_candidates_drops_candidate_differing_only_in_outcome():
+    other_question = {**PACEMAKER_CANDIDATE, "intervention": "temporary pacing"}
     response = json.dumps(
-        [PACEMAKER_CANDIDATE, {**PACEMAKER_CANDIDATE, "outcome": "all-cause mortality"}]
+        [
+            PACEMAKER_CANDIDATE,
+            other_question,
+            {**PACEMAKER_CANDIDATE, "outcome": "all-cause mortality"},
+        ]
     )
 
-    with pytest.raises(ValueError):
-        generate_pico_candidates("case text", lambda prompt: response)
+    result = generate_pico_candidates("case text", lambda prompt: response)
+
+    assert result == [PACEMAKER_CANDIDATE, other_question]
 
 
-def test_generate_pico_candidates_raises_on_exact_copies():
+def test_generate_pico_candidates_drops_exact_copies():
     response = json.dumps([PACEMAKER_CANDIDATE, PACEMAKER_CANDIDATE])
+
+    result = generate_pico_candidates("case text", lambda prompt: response)
+
+    assert result == [PACEMAKER_CANDIDATE]
+
+
+def test_generate_pico_candidates_treats_null_string_and_null_comparison_as_duplicates():
+    no_comparison = {**PACEMAKER_CANDIDATE, "comparison": None}
+    response = json.dumps(
+        [no_comparison, {**no_comparison, "comparison": "null", "outcome": "all-cause mortality"}]
+    )
+
+    result = generate_pico_candidates("case text", lambda prompt: response)
+
+    assert result == [no_comparison]
+
+
+def _numbered_candidates(count):
+    return [{**PACEMAKER_CANDIDATE, "intervention": f"intervention {n}"} for n in range(1, count + 1)]
+
+
+def test_generate_pico_candidates_counts_candidates_after_dropping_duplicates():
+    distinct = _numbered_candidates(4)
+    response = json.dumps(distinct + [distinct[0]])
+
+    result = generate_pico_candidates("case text", lambda prompt: response)
+
+    assert result == distinct
+
+
+def test_generate_pico_candidates_raises_on_five_distinct_after_dropping_duplicates():
+    distinct = _numbered_candidates(5)
+    response = json.dumps(distinct + [distinct[0]])
 
     with pytest.raises(ValueError):
         generate_pico_candidates("case text", lambda prompt: response)

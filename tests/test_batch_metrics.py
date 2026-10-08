@@ -1,5 +1,7 @@
 """Acceptance-criteria tests for batch metrics in batch_metrics.py."""
 
+import json
+
 from pico_pubmed_rag.batch_metrics import compare_batches, compute_batch_metrics
 from pico_pubmed_rag.pico_generation import EXAMPLE_CANDIDATES
 from tests.trace_builders import VALID_CANDIDATE, make_trace
@@ -246,3 +248,16 @@ def test_repetitive_summaries_are_counted():
     pooled = compute_batch_metrics(traces)["pooled"]
 
     assert pooled["repetitive_summaries"] == {"count": 1, "of": 2}
+
+
+def test_runs_with_dropped_pico_duplicates_are_counted():
+    other_outcome = {**VALID_CANDIDATE, "outcome": "function"}
+    traces = [
+        make_trace(1, pico_response=json.dumps([VALID_CANDIDATE, other_outcome])),
+        make_trace(2, pico_response=json.dumps([VALID_CANDIDATE])),
+        make_trace(3, outcome="failed", failed_stage="generate_pico_candidates"),
+    ]
+
+    pooled = compute_batch_metrics(traces)["pooled"]
+
+    assert pooled["pico_duplicates_dropped"] == {"count": 1, "of": 2}

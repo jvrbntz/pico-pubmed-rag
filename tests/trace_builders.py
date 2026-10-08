@@ -23,6 +23,7 @@ def make_trace(
     candidates=(VALID_CANDIDATE,),
     search_terms=None,
     search_terms_failed=False,
+    pico_response=None,
 ):
     """Builds a minimal schema-v1 trace with the given outcome."""
     stages = {name: {"status": "skipped", "skip_reason": "not reached"} for name in STAGE_NAMES}
@@ -46,7 +47,8 @@ def make_trace(
         stages["generate_pico_candidates"] = {"status": "failed", "failure_tag": failure_tag}
         return _trace(case_id, repeat, outcome, stages)
 
-    succeed("generate_pico_candidates", list(candidates))
+    pico_records = None if pico_response is None else [{"prompt": "...", "response": pico_response}]
+    succeed("generate_pico_candidates", list(candidates), pico_records)
     succeed("select_pico", candidates[0])
     if search_terms_failed:
         stages["extract_search_terms"] = {"status": "failed", "failure_tag": "validation"}

@@ -45,6 +45,7 @@ def print_metrics(name, metrics):
         ("Runs with an invalid citation (of runs that cite)", fmt(pooled["runs_with_invalid_citation"])),
         ("Runs citing nothing (of completed)", fmt(pooled["runs_citing_nothing"])),
         ("Leaked example candidates (of candidates)", fmt(pooled["leaked_candidates"])),
+        ("PICO responses with duplicates dropped (of PICO passes)", fmt(pooled["pico_duplicates_dropped"])),
         ("Descriptive queries, over 8 words searched (of queries)", fmt(pooled["query_words"]["descriptive"])),
         ("Query words, median / max", f"{pooled['query_words']['median']} / {pooled['query_words']['max']}"),
     ]

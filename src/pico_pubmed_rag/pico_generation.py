@@ -87,12 +87,15 @@ def generate_pico_candidates(case_text, llm_call):
                 f"PICO candidate has a missing or empty value: {candidate}"
             )
 
-    if len(candidates) != len(
-        {(c["population"], c["intervention"], c["comparison"]) for c in candidates}
-    ):
-        raise ValueError(
-            "Duplicate PICO candidates: same population, intervention, and comparison"
-        )
+    # Keeps the first candidate for each question; later ones differ at most in outcome.
+    seen_questions = set()
+    distinct_candidates = []
+    for candidate in candidates:
+        question = (candidate["population"], candidate["intervention"], candidate["comparison"])
+        if question not in seen_questions:
+            seen_questions.add(question)
+            distinct_candidates.append(candidate)
+    candidates = distinct_candidates
 
     if len(candidates) < 1 or len(candidates) > 4:
         raise ValueError("Number of PICO candidates can only be between 1 and 4")

@@ -23,6 +23,7 @@ Computed from run traces. No hand labels needed, only a fixed sample of cases. B
 | Search terms pass | Search terms that pass validation | Runs where the search-terms step succeeds, over runs that reached it |
 | Descriptive queries | Searches phrased as descriptions | Queries whose population and intervention exceed 8 words, over queries built |
 | Repetitive summaries | Summaries stuck repeating themselves | Completed summaries where a line of 50 or more characters appears 3 or more times, over completed runs |
+| Duplicates dropped | PICO responses that repeated a question | Runs whose raw PICO response held more candidates than the step kept, over PICO passes |
 
 ## Quality metrics
 

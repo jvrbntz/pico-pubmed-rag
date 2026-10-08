@@ -1,10 +1,11 @@
 """Computes operational metrics from a batch of run traces: per repeat, per case, and pooled."""
 
+import json
 import re
 from collections import defaultdict
 from statistics import median
 
-from pico_pubmed_rag.pico_generation import EXAMPLE_CANDIDATES
+from pico_pubmed_rag.pico_generation import EXAMPLE_CANDIDATES, _extract_json_array
 
 NO_CLEAR_ANSWER_LABEL = "No Clear Answer:"
 EVIDENCE_SUMMARY_LABEL = "Evidence Summary:"
@@ -62,6 +63,7 @@ def _pooled(traces):
         "repetitive_summaries": _rate(sum(_is_repetitive(s) for s in summaries), len(completed)),
         **_citation_counts(completed),
         "leaked_candidates": _leak_count(traces),
+        "pico_duplicates_dropped": _duplicates_dropped(traces),
         "query_words": _query_word_counts(traces),
         "search_terms_pass": _search_terms_pass(traces),
     }
@@ -116,6 +118,22 @@ def _leak_count(traces):
         for candidate in t["stages"]["generate_pico_candidates"]["output"]
     ]
     return _rate(sum(_normalized(c) in examples for c in candidates), len(candidates))
+
+
+def _duplicates_dropped(traces):
+    passed = [t for t in traces if _stage_succeeded(t, "generate_pico_candidates")]
+    dropped = sum(
+        _raw_candidate_count(t) > len(t["stages"]["generate_pico_candidates"]["output"])
+        for t in passed
+    )
+    return _rate(dropped, len(passed))
+
+
+def _raw_candidate_count(trace):
+    stage = trace["stages"]["generate_pico_candidates"]
+    if not stage.get("call_records"):
+        return len(stage["output"])
+    return len(json.loads(_extract_json_array(stage["call_records"][0]["response"])))
 
 
 def _is_repetitive(summary):
