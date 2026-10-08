@@ -88,6 +88,7 @@ def esearch_get(query):
     params = {
         "db": "pubmed",
         "term": query,
+        "sort": "relevance",
         "retmode": "json",
         "tool": tool,
         "email": email,

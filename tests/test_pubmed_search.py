@@ -195,6 +195,26 @@ def test_esearch_get_raises_configuration_error_without_ncbi_settings(monkeypatc
         esearch_get("metformin")
 
 
+def test_esearch_get_requests_best_match_order(monkeypatch):
+    monkeypatch.setenv("NCBI_TOOL_NAME", "test-tool")
+    monkeypatch.setenv("NCBI_EMAIL", "test@example.com")
+    sent_params = []
+
+    class FakeResponse:
+        def json(self):
+            return {"esearchresult": {"idlist": []}}
+
+    def fake_get(url, params):
+        sent_params.append(params)
+        return FakeResponse()
+
+    monkeypatch.setattr("pico_pubmed_rag.pubmed_search.requests.get", fake_get)
+
+    esearch_get("metformin")
+
+    assert sent_params[0]["sort"] == "relevance"
+
+
 def test_efetch_get_raises_configuration_error_without_ncbi_settings(monkeypatch):
     monkeypatch.delenv("NCBI_TOOL_NAME", raising=False)
     with pytest.raises(ConfigurationError):
