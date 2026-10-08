@@ -195,3 +195,20 @@ Setup: commit `641e440`, batch `746ca8c8`, 3 repeats, compared against E10. Thre
 | Search terms failures | 7 | 9 |
 
 Conclusion: met all 5 thresholds. The 4 cases that failed on duplicates in E10 (220, 848, 3480, 4964) completed 9 of 12 runs; the other 16 cases were unchanged. Answered held at about 20% of completed, so more runs complete without the summaries answering more often. The remaining PICO failures are both "Extra data" JSON errors. Search terms are now the largest failure stage, mostly terms that list several concepts joined by commas or AND. E11 is the new baseline.
+
+## E13. PICO rules from GRADE and Cochrane (2026-10-08)
+
+Question: does a PICO prompt grounded in GRADE and Cochrane guidance (decision first, comparator always given, outcomes important to patients, and a procedure-note example) make PICOs more specific without losing runs?
+
+Setup: commit `9ed442b`, batch `c618e234`, 3 repeats, compared against E12. Thresholds set before running: selected PICOs with no comparison at most 15; procedure-finding outcomes at most 8; PICO failures at most 8; completed at least 38 of 60; cited PMIDs 100% valid.
+
+| Metric | E12 | E13 |
+|---|---|---|
+| No comparison | 44/58 | 2/38 |
+| Outcome is a procedure finding | 16/58 | 2/38 |
+| PICO failures | 2 | 22 (11 draft JSON in reasoning, 6 reasoning loops, 5 no clinical decision) |
+| Search terms failures | 9 | 13 |
+| Completed | 43/60 | 21/60 |
+| Valid cited PMIDs | 67/68 | 52/52 |
+
+Conclusion: met the two PICO-quality thresholds and citation validity; missed PICO failures and completed. Every PICO response now includes reasoning before the answer, and 11 failures came from draft JSON in that reasoning, which a replay recovers by parsing only after the reasoning marker. Six responses looped in reasoning until the output cap, one on the prompt's own example. More specific populations also exceeded the 4-word search-term limit more often. Next: parse PICO responses after the reasoning marker.

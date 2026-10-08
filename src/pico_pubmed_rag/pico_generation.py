@@ -2,6 +2,8 @@
 
 import json
 
+from pico_pubmed_rag.search_terms import REASONING_END_MARKER
+
 EXAMPLE_NOTE = (
     "52-year-old woman with recurrent right upper quadrant pain after fatty meals. "
     "Ultrasound shows gallstones without cholecystitis. Plan: elective laparoscopic cholecystectomy."
@@ -93,7 +95,8 @@ def _extract_json_array(text):
 def generate_pico_candidates(case_text, llm_call):
     response = llm_call(build_prompt(case_text))
 
-    parsed = _parse_response(response)
+    final_answer = response.rsplit(REASONING_END_MARKER, 1)[-1]
+    parsed = _parse_response(final_answer)
     if not (parsed["clinical_decision"] or "").strip():
         raise ValueError(NO_CLINICAL_DECISION_MESSAGE)
     candidates = parsed["candidates"]

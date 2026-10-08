@@ -464,3 +464,11 @@ def test_generate_pico_candidates_raises_distinct_error_without_clinical_decisio
 
 def test_build_prompt_says_how_to_report_no_clinical_decision():
     assert 'set "clinical_decision" to null and "candidates" to an empty list' in build_prompt("case text")
+
+
+def test_generate_pico_candidates_reads_only_the_answer_after_reasoning():
+    draft = pico_response([{**PACEMAKER_CANDIDATE, "intervention": "draft idea"}])
+    final = pico_response([PACEMAKER_CANDIDATE])
+    response = f"<unused94>thought\nLet me draft: {draft}\nRevised.<unused95>{final}"
+
+    assert generate_pico_candidates("case text", lambda prompt: response) == [PACEMAKER_CANDIDATE]

@@ -10,6 +10,7 @@ from pico_pubmed_rag.pico_generation import (
     NO_CLINICAL_DECISION_MESSAGE,
     _extract_json_array,
 )
+from pico_pubmed_rag.search_terms import REASONING_END_MARKER
 
 NO_CLEAR_ANSWER_LABEL = "No Clear Answer:"
 EVIDENCE_SUMMARY_LABEL = "Evidence Summary:"
@@ -162,7 +163,8 @@ def _raw_candidate_count(trace):
     stage = trace["stages"]["generate_pico_candidates"]
     if not stage.get("call_records"):
         return len(stage["output"])
-    return len(json.loads(_extract_json_array(stage["call_records"][0]["response"])))
+    final_answer = stage["call_records"][0]["response"].rsplit(REASONING_END_MARKER, 1)[-1]
+    return len(json.loads(_extract_json_array(final_answer)))
 
 
 def _is_repetitive(summary):

@@ -296,3 +296,12 @@ def test_no_clinical_decision_failures_are_counted():
     pooled = compute_batch_metrics([no_decision, other_failure, make_trace(3)])["pooled"]
 
     assert pooled["pico_no_clinical_decision"] == {"count": 1, "of": 3}
+
+
+def test_dropped_duplicates_counted_from_answer_after_reasoning():
+    final = json.dumps({"clinical_decision": "Knee replacement chosen.", "candidates": [VALID_CANDIDATE]})
+    response = f"<unused94>thought\nDraft: [1, 2, 3]<unused95>{final}"
+
+    pooled = compute_batch_metrics([make_trace(1, pico_response=response)])["pooled"]
+
+    assert pooled["pico_duplicates_dropped"] == {"count": 0, "of": 1}
